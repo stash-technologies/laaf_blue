@@ -1,0 +1,1 @@
+enum Foot { left, right }
