@@ -1,14 +1,13 @@
+import 'dart:async';
+
 import 'package:blue/step_data_packet.dart';
 import 'package:flutter/services.dart';
 
-import 'dart:async';
-
 import 'blue_platform_interface.dart';
-
 import 'blue_state.dart';
-import 'lf_liner.dart';
-import 'device_state.dart';
 import 'bluetooth_status.dart';
+import 'device_state.dart';
+import 'lf_liner.dart';
 import 'logger.dart';
 import 'step.dart';
 
@@ -38,16 +37,14 @@ class MethodChannelBlue extends BluePlatform {
       "00008813-0000-1000-8000-00805f9b34fb", // mode char uuid
       "0000880E-0000-1000-8000-00805f9b34fb" // live stream data uuid
     ];
-    final result =
-        await methodChannel.invokeMethod<bool>('initializeBluetooth', uuids);
+    final result = await methodChannel.invokeMethod<bool>('initializeBluetooth', uuids);
 
     return result;
   }
 
   @override
   Future<bool?> scan(int duration) async {
-    final scanResult =
-        await methodChannel.invokeMethod<bool?>('scan', duration);
+    final scanResult = await methodChannel.invokeMethod<bool?>('scan', duration);
 
     if (scanResult!) {
       Logger.log("b", "updating bluestate scanning status...");
@@ -69,8 +66,7 @@ class MethodChannelBlue extends BluePlatform {
   @override
   Future<bool?> stopScan() async {
     if (!blueState.scanning.value()) {
-      Logger.log("b warning",
-          "a 'stopScan' was attempted when no scan was in progress");
+      Logger.log("b warning", "a 'stopScan' was attempted when no scan was in progress");
       return Future<bool?>(() => false);
     }
 
@@ -98,8 +94,7 @@ class MethodChannelBlue extends BluePlatform {
   @override
   Future<bool?> checkMode(String deviceId) async {
     Logger.log("b", "checking mode of device $deviceId");
-    final result =
-        await methodChannel.invokeMethod<bool?>('checkMode', deviceId);
+    final result = await methodChannel.invokeMethod<bool?>('checkMode', deviceId);
 
     return result;
   }
@@ -115,8 +110,7 @@ class MethodChannelBlue extends BluePlatform {
       devicesStagedForDisconnection.add(deviceId);
     }
 
-    final result =
-        await methodChannel.invokeMethod<bool?>('disconnect', deviceId);
+    final result = await methodChannel.invokeMethod<bool?>('disconnect', deviceId);
 
     return result;
   }
@@ -171,9 +165,7 @@ class MethodChannelBlue extends BluePlatform {
         }
 
       case "updateDetectedDevices":
-        List<LFLiner> newDevices = (call.arguments as List)
-            .map((o) => LFLiner.deviceFromMap(o))
-            .toList();
+        List<LFLiner> newDevices = (call.arguments as List).map((o) => LFLiner.deviceFromMap(o)).toList();
         blueState.scannedDevices.update(newDevices);
 
       case "connectionComplete":
@@ -181,15 +173,14 @@ class MethodChannelBlue extends BluePlatform {
 
         // reset step calculator
 
-        blueState.stepDataClaculator.reset();
+        blueState.stepDataCalculator.reset();
 
         checkMode(id);
 
       case "updateDeviceState":
         final args = call.arguments as Map;
         final id = args["id"] as String;
-        final DeviceState updatedState =
-            DeviceState.values[args["state"] as int];
+        final DeviceState updatedState = DeviceState.values[args["state"] as int];
         Logger.log("b", "device state update: $id / $updatedState");
 
         final device = getDevice(id);
@@ -233,8 +224,7 @@ class MethodChannelBlue extends BluePlatform {
 
         if (packet[0] == 0xD5) {
           final data = StepDataPacket(packet);
-          blueState.stepDataClaculator.addStep(Step(data.timestamp.toInt(),
-              data.timestamp.toInt() + data.contactTime.toInt(), device.side));
+          blueState.stepDataCalculator.addStep(Step(data.timestamp.toInt(), data.timestamp.toInt() + data.contactTime.toInt(), device.side));
         }
 
         device.parseAndUpdatePacket(packet);
@@ -256,8 +246,7 @@ class MethodChannelBlue extends BluePlatform {
         });
 
       default:
-        throw UnimplementedError(
-            "a method was called that does not exist: ${call.method}");
+        throw UnimplementedError("a method was called that does not exist: ${call.method}");
     }
   }
 
