@@ -173,98 +173,98 @@ class Blue {
   }
 
 
-  /// Sends a get summary file command to the 'device'.  Returns 'false' if bluetooth
-  /// is unavailable, the platform function exceeds the timeout,
-  /// or the device does not receive the write command.
-  Future<bool> getSummaryFile(LFLiner device) async {
-    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
-      Uint8List getSummaryFile = Uint8List.fromList([0x10]);
-      final result = await BluePlatform.instance
-          .sendCommand(device.id, getSummaryFile)
-          .timeout(const Duration(seconds: timeUntilTimeout),
-              onTimeout: timeoutFunction(
-                  "blue.getSummaryFile", device.id.substring(device.id.length - 5)));
+  // /// Sends a get summary file command to the 'device'.  Returns 'false' if bluetooth
+  // /// is unavailable, the platform function exceeds the timeout,
+  // /// or the device does not receive the write command.
+  // Future<bool> getSummaryFile(LFLiner device) async {
+  //   if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+  //     Uint8List getSummaryFile = Uint8List.fromList([0x10]);
+  //     final result = await BluePlatform.instance
+  //         .sendCommand(device.id, getSummaryFile)
+  //         .timeout(const Duration(seconds: timeUntilTimeout),
+  //             onTimeout: timeoutFunction(
+  //                 "blue.getSummaryFile", device.id.substring(device.id.length - 5)));
 
-      return nonNullResult(result);
-    } else {
-      return Future<bool>(() => false);
-    }
-  }
+  //     return nonNullResult(result);
+  //   } else {
+  //     return Future<bool>(() => false);
+  //   }
+  // }
 
-  /// Sends a get number of activity files command to the 'device'.  Returns 'false' if bluetooth
-  /// is unavailable, the platform function exceeds the timeout,
-  /// or the device does not receive the write command.
-  Future<bool> getNumberOfActivityFiles(LFLiner device) async {
-    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
-      Uint8List getNumberOfActivityFiles = Uint8List.fromList([20]);
-      final result = await BluePlatform.instance
-          .sendCommand(device.id, getNumberOfActivityFiles)
-          .timeout(const Duration(seconds: timeUntilTimeout),
-              onTimeout: timeoutFunction(
-                  "blue.getNumberOfActivityFiles", device.id.substring(device.id.length - 5)));
+  // /// Sends a get number of activity files command to the 'device'.  Returns 'false' if bluetooth
+  // /// is unavailable, the platform function exceeds the timeout,
+  // /// or the device does not receive the write command.
+  // Future<bool> getNumberOfActivityFiles(LFLiner device) async {
+  //   if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+  //     Uint8List getNumberOfActivityFiles = Uint8List.fromList([20]);
+  //     final result = await BluePlatform.instance
+  //         .sendCommand(device.id, getNumberOfActivityFiles)
+  //         .timeout(const Duration(seconds: timeUntilTimeout),
+  //             onTimeout: timeoutFunction(
+  //                 "blue.getNumberOfActivityFiles", device.id.substring(device.id.length - 5)));
 
-      return nonNullResult(result);
-    } else {
-      return Future<bool>(() => false);
-    }
-  }
-
-
-  /// Sends a get file command to the 'device'.  Returns 'false' if bluetooth
-  /// is unavailable, the platform function exceeds the timeout,
-  /// or the device does not receive the write command.
-  Future<bool> getFile(LFLiner device) async {
-    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
-      Uint8List getFile = Uint8List.fromList([0x21]);
-      final result = await BluePlatform.instance
-          .sendCommand(device.id, getFile)
-          .timeout(const Duration(seconds: timeUntilTimeout),
-              onTimeout: timeoutFunction(
-                  "blue.getFile", device.id.substring(device.id.length - 5)));
-
-      return nonNullResult(result);
-    } else {
-      return Future<bool>(() => false);
-    }
-  }
+  //     return nonNullResult(result);
+  //   } else {
+  //     return Future<bool>(() => false);
+  //   }
+  // }
 
 
-  /// Sends a erase file command to the 'device'.  Returns 'false' if bluetooth
-  /// is unavailable, the platform function exceeds the timeout,
-  /// or the device does not receive the write command.
-  Future<bool> eraseFile(LFLiner device) async {
-    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
-      Uint8List eraseFile = Uint8List.fromList([0x22]);
-      final result = await BluePlatform.instance
-          .sendCommand(device.id, eraseFile)
-          .timeout(const Duration(seconds: timeUntilTimeout),
-              onTimeout: timeoutFunction(
-                  "blue.eraseFile", device.id.substring(device.id.length - 5)));
+  // /// Sends a get file command to the 'device'.  Returns 'false' if bluetooth
+  // /// is unavailable, the platform function exceeds the timeout,
+  // /// or the device does not receive the write command.
+  // Future<bool> getFile(LFLiner device) async {
+  //   if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+  //     Uint8List getFile = Uint8List.fromList([0x21]);
+  //     final result = await BluePlatform.instance
+  //         .sendCommand(device.id, getFile)
+  //         .timeout(const Duration(seconds: timeUntilTimeout),
+  //             onTimeout: timeoutFunction(
+  //                 "blue.getFile", device.id.substring(device.id.length - 5)));
 
-      return nonNullResult(result);
-    } else {
-      return Future<bool>(() => false);
-    }
-  }
+  //     return nonNullResult(result);
+  //   } else {
+  //     return Future<bool>(() => false);
+  //   }
+  // }
 
 
-  /// Sends a erase all files command to the 'device'.  Returns 'false' if bluetooth
-  /// is unavailable, the platform function exceeds the timeout,
-  /// or the device does not receive the write command.
-  Future<bool> eraseAllFiles(LFLiner device) async {
-    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
-      Uint8List eraseAllFiles = Uint8List.fromList([0x23]);
-      final result = await BluePlatform.instance
-          .sendCommand(device.id, eraseAllFiles)
-          .timeout(const Duration(seconds: timeUntilTimeout),
-              onTimeout: timeoutFunction(
-                  "blue.eraseAllFiles", device.id.substring(device.id.length - 5)));
+  // /// Sends a erase file command to the 'device'.  Returns 'false' if bluetooth
+  // /// is unavailable, the platform function exceeds the timeout,
+  // /// or the device does not receive the write command.
+  // Future<bool> eraseFile(LFLiner device) async {
+  //   if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+  //     Uint8List eraseFile = Uint8List.fromList([0x22]);
+  //     final result = await BluePlatform.instance
+  //         .sendCommand(device.id, eraseFile)
+  //         .timeout(const Duration(seconds: timeUntilTimeout),
+  //             onTimeout: timeoutFunction(
+  //                 "blue.eraseFile", device.id.substring(device.id.length - 5)));
 
-      return nonNullResult(result);
-    } else {
-      return Future<bool>(() => false);
-    }
-  }
+  //     return nonNullResult(result);
+  //   } else {
+  //     return Future<bool>(() => false);
+  //   }
+  // }
+
+
+  // /// Sends a erase all files command to the 'device'.  Returns 'false' if bluetooth
+  // /// is unavailable, the platform function exceeds the timeout,
+  // /// or the device does not receive the write command.
+  // Future<bool> eraseAllFiles(LFLiner device) async {
+  //   if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+  //     Uint8List eraseAllFiles = Uint8List.fromList([0x23]);
+  //     final result = await BluePlatform.instance
+  //         .sendCommand(device.id, eraseAllFiles)
+  //         .timeout(const Duration(seconds: timeUntilTimeout),
+  //             onTimeout: timeoutFunction(
+  //                 "blue.eraseAllFiles", device.id.substring(device.id.length - 5)));
+
+  //     return nonNullResult(result);
+  //   } else {
+  //     return Future<bool>(() => false);
+  //   }
+  // }
 
   
 

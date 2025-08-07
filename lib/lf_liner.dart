@@ -104,30 +104,30 @@ class LFLiner {
     return blue.stopLog(this);
   }
 
-  /// Get summary file.  Returns 'true' if the get summary file command was sent to the device.
-  Future<bool> getSummaryFile() {
-    return blue.getSummaryFile(this);
-  }
+  // /// Get summary file.  Returns 'true' if the get summary file command was sent to the device.
+  // Future<bool> getSummaryFile() {
+  //   return blue.getSummaryFile(this);
+  // }
 
-  /// Get number of activity files.  Returns 'true' if the get number of activity files command was sent to the device.
-  Future<bool> getNumberOfActivityFiles() {
-    return blue.getNumberOfActivityFiles(this);
-  }
+  // /// Get number of activity files.  Returns 'true' if the get number of activity files command was sent to the device.
+  // Future<bool> getNumberOfActivityFiles() {
+  //   return blue.getNumberOfActivityFiles(this);
+  // }
 
-  /// Get file.  Returns 'true' if the get file command was sent to the device.
-  Future<bool> getFile() {
-    return blue.getFile(this);
-  }
+  // /// Get file.  Returns 'true' if the get file command was sent to the device.
+  // Future<bool> getFile() {
+  //   return blue.getFile(this);
+  // }
 
-  /// Erase file.  Returns 'true' if the erase file command was sent to the device.
-  Future<bool> eraseFile() {
-    return blue.eraseFile(this);
-  }
+  // /// Erase file.  Returns 'true' if the erase file command was sent to the device.
+  // Future<bool> eraseFile() {
+  //   return blue.eraseFile(this);
+  // }
 
-  /// Erase all files.  Returns 'true' if the erase all files command was sent to the device.
-  Future<bool> eraseAllFiles() {
-    return blue.eraseAllFiles(this);
-  }
+  // /// Erase all files.  Returns 'true' if the erase all files command was sent to the device.
+  // Future<bool> eraseAllFiles() {
+  //   return blue.eraseAllFiles(this);
+  // }
 
   /// Start live streming step and fsr data from this device. All packet's will
   /// appear in their raw form in 'liveStreamPacket', or their parsed forms
