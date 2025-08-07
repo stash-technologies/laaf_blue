@@ -202,7 +202,7 @@ class MethodChannelBlue extends BluePlatform {
         device.deviceState.update(DeviceState.disconnected);
 
         if (devicesStagedForDisconnection.contains(id)) {
-          print("removing device from active devices");
+          Logger.log("b", "removing device from active devices");
           devicesStagedForDisconnection.remove(id);
           final devices = blueState.activeDevices.value();
           devices.remove(device);

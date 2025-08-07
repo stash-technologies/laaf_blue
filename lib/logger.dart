@@ -1,3 +1,4 @@
+import 'dart:developer' as dev;
 /// A logging utility that allows variable logging methods by replacing the core
 /// 'log' function.  It is sent to 'print' by default.
 class Logger {
@@ -7,7 +8,7 @@ class Logger {
   static Function log = (tag, str) {
     // the default method is to 'print()'.
     if (shouldLog) {
-      print("$tag: $str");
+      dev.log("$tag: $str");
     }
   };
 
