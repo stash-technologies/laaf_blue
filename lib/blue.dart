@@ -20,7 +20,7 @@ class Blue {
   Future<bool> initializeBluetooth() async {
     final bool? result = await BluePlatform.instance
         .initializeBluetooth()
-        .timeout(const Duration(seconds: timeUntilTimout),
+        .timeout(const Duration(seconds: timeUntilTimeout),
             onTimeout:
                 timeoutFunction("blue.initializeBluetooth", "bluetooth"));
 
@@ -46,7 +46,7 @@ class Blue {
     }
   }
 
-  static const int timeUntilTimout = 3;
+  static const int timeUntilTimeout = 3;
 
   /// Returns 'true' if the scan request was received by the platform.
   /// The devices found in the scan come back through the
@@ -55,7 +55,7 @@ class Blue {
     if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
       if (!blueState.scanning.value()) {
         final result = await BluePlatform.instance.scan(duration).timeout(
-            Duration(seconds: timeUntilTimout + duration),
+            Duration(seconds: timeUntilTimeout + duration),
             onTimeout: timeoutFunction("blue.scan", "bluetooth"));
 
         return nonNullResult(result);
@@ -70,7 +70,7 @@ class Blue {
   /// returns 'true' if the stopScan request was received by the platform.
   Future<bool> stopScan() async {
     final result = await BluePlatform.instance.stopScan().timeout(
-        const Duration(seconds: timeUntilTimout),
+        const Duration(seconds: timeUntilTimeout),
         onTimeout: timeoutFunction("blue.stopScan", "bluetooth"));
 
     return nonNullResult(result);
@@ -104,7 +104,7 @@ class Blue {
       }
 
       final result = await BluePlatform.instance.connect(device.id).timeout(
-          const Duration(seconds: timeUntilTimout),
+          const Duration(seconds: timeUntilTimeout),
           onTimeout: timeoutFunction(
               "blue.connect", device.id.substring(device.id.length - 5)));
 
@@ -123,7 +123,7 @@ class Blue {
   Future<bool> checkMode(LFLiner device) async {
     if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
       final result = await BluePlatform.instance.checkMode(device.id).timeout(
-          const Duration(seconds: timeUntilTimout),
+          const Duration(seconds: timeUntilTimeout),
           onTimeout: timeoutFunction(
               "blue.checkMode", device.id.substring(device.id.length - 5)));
 
@@ -144,7 +144,7 @@ class Blue {
           Uint8List.fromList([0x01, 0x80, 0x00, 0x00, 0x00, 0x73]);
       final result = await BluePlatform.instance
           .sendCommand(device.id, startLog)
-          .timeout(const Duration(seconds: timeUntilTimout),
+          .timeout(const Duration(seconds: timeUntilTimeout),
               onTimeout: timeoutFunction(
                   "blue.startLog", device.id.substring(device.id.length - 5)));
 
@@ -162,7 +162,7 @@ class Blue {
       Uint8List stopLog = Uint8List.fromList([0x02]);
       final result = await BluePlatform.instance
           .sendCommand(device.id, stopLog)
-          .timeout(const Duration(seconds: timeUntilTimout),
+          .timeout(const Duration(seconds: timeUntilTimeout),
               onTimeout: timeoutFunction(
                   "blue.stopLog", device.id.substring(device.id.length - 5)));
 
@@ -172,6 +172,102 @@ class Blue {
     }
   }
 
+
+  /// Sends a get summary file command to the 'device'.  Returns 'false' if bluetooth
+  /// is unavailable, the platform function exceeds the timeout,
+  /// or the device does not receive the write command.
+  Future<bool> getSummaryFile(LFLiner device) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      Uint8List getSummaryFile = Uint8List.fromList([0x10]);
+      final result = await BluePlatform.instance
+          .sendCommand(device.id, getSummaryFile)
+          .timeout(const Duration(seconds: timeUntilTimeout),
+              onTimeout: timeoutFunction(
+                  "blue.getSummaryFile", device.id.substring(device.id.length - 5)));
+
+      return nonNullResult(result);
+    } else {
+      return Future<bool>(() => false);
+    }
+  }
+
+  /// Sends a get number of activity files command to the 'device'.  Returns 'false' if bluetooth
+  /// is unavailable, the platform function exceeds the timeout,
+  /// or the device does not receive the write command.
+  Future<bool> getNumberOfActivityFiles(LFLiner device) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      Uint8List getNumberOfActivityFiles = Uint8List.fromList([20]);
+      final result = await BluePlatform.instance
+          .sendCommand(device.id, getNumberOfActivityFiles)
+          .timeout(const Duration(seconds: timeUntilTimeout),
+              onTimeout: timeoutFunction(
+                  "blue.getNumberOfActivityFiles", device.id.substring(device.id.length - 5)));
+
+      return nonNullResult(result);
+    } else {
+      return Future<bool>(() => false);
+    }
+  }
+
+
+  /// Sends a get file command to the 'device'.  Returns 'false' if bluetooth
+  /// is unavailable, the platform function exceeds the timeout,
+  /// or the device does not receive the write command.
+  Future<bool> getFile(LFLiner device) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      Uint8List getFile = Uint8List.fromList([0x21]);
+      final result = await BluePlatform.instance
+          .sendCommand(device.id, getFile)
+          .timeout(const Duration(seconds: timeUntilTimeout),
+              onTimeout: timeoutFunction(
+                  "blue.getFile", device.id.substring(device.id.length - 5)));
+
+      return nonNullResult(result);
+    } else {
+      return Future<bool>(() => false);
+    }
+  }
+
+
+  /// Sends a erase file command to the 'device'.  Returns 'false' if bluetooth
+  /// is unavailable, the platform function exceeds the timeout,
+  /// or the device does not receive the write command.
+  Future<bool> eraseFile(LFLiner device) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      Uint8List eraseFile = Uint8List.fromList([0x22]);
+      final result = await BluePlatform.instance
+          .sendCommand(device.id, eraseFile)
+          .timeout(const Duration(seconds: timeUntilTimeout),
+              onTimeout: timeoutFunction(
+                  "blue.eraseFile", device.id.substring(device.id.length - 5)));
+
+      return nonNullResult(result);
+    } else {
+      return Future<bool>(() => false);
+    }
+  }
+
+
+  /// Sends a erase all files command to the 'device'.  Returns 'false' if bluetooth
+  /// is unavailable, the platform function exceeds the timeout,
+  /// or the device does not receive the write command.
+  Future<bool> eraseAllFiles(LFLiner device) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      Uint8List eraseAllFiles = Uint8List.fromList([0x23]);
+      final result = await BluePlatform.instance
+          .sendCommand(device.id, eraseAllFiles)
+          .timeout(const Duration(seconds: timeUntilTimeout),
+              onTimeout: timeoutFunction(
+                  "blue.eraseAllFiles", device.id.substring(device.id.length - 5)));
+
+      return nonNullResult(result);
+    } else {
+      return Future<bool>(() => false);
+    }
+  }
+
+  
+
   /// Sends the start stream command to the 'device'.  Returns 'false' if
   /// bluetooth is unavailable, the platform function exceeds the
   /// timeout, or the device does not receive the write command.
@@ -180,7 +276,7 @@ class Blue {
       Uint8List startStream = Uint8List.fromList([0x03, 0x01]);
       final result = await BluePlatform.instance
           .sendCommand(device.id, startStream)
-          .timeout(const Duration(seconds: timeUntilTimout),
+          .timeout(const Duration(seconds: timeUntilTimeout),
               onTimeout: timeoutFunction("blue.startStream",
                   device.id.substring(device.id.length - 5)));
 
@@ -199,7 +295,7 @@ class Blue {
         Uint8List stopStream = Uint8List.fromList([0x04]);
         final result = await BluePlatform.instance
             .sendCommand(device.id, stopStream)
-            .timeout(const Duration(seconds: timeUntilTimout),
+            .timeout(const Duration(seconds: timeUntilTimeout),
                 onTimeout: timeoutFunction("blue.stopStream",
                     device.id.substring(device.id.length - 5)));
 
@@ -226,7 +322,7 @@ class Blue {
       // TODO => get this to return a more descriptive value (timeout occurring)
       /*
     .timeout(
-        const Duration(seconds: timeUntilTimout + 5),
+        const Duration(seconds: timeUntilTimeout + 5),
         onTimeout: timeoutFunction(
             "blue.reset", device.id.substring(device.id.length - 5)));
             */
@@ -262,7 +358,7 @@ class Blue {
   Future<bool> disconnect(LFLiner device) async {
     if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
       final result = await BluePlatform.instance.disconnect(device.id).timeout(
-          const Duration(seconds: timeUntilTimout),
+          const Duration(seconds: timeUntilTimeout),
           onTimeout: timeoutFunction(
               "blue.disconnect", device.id.substring(device.id.length - 5),
               device: device));
