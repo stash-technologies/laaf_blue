@@ -137,6 +137,116 @@ class MethodChannelBlue extends BluePlatform {
     return result;
   }
 
+  // New LAAF protocol method implementations
+  @override
+  Future<bool?> setTime(String deviceId, DateTime timestamp) async {
+    Logger.log("b", "setting time for device $deviceId to $timestamp");
+
+    // Convert DateTime to Unix timestamp (seconds since epoch)
+    final unixTimestamp = timestamp.millisecondsSinceEpoch ~/ 1000;
+
+    // Create set time command with Unix timestamp (4 bytes, little-endian)
+    final command = Uint8List(5);
+    command[0] = 0x10; // Set time command ID
+    command[1] = (unixTimestamp & 0xFF);
+    command[2] = ((unixTimestamp >> 8) & 0xFF);
+    command[3] = ((unixTimestamp >> 16) & 0xFF);
+    command[4] = ((unixTimestamp >> 24) & 0xFF);
+
+    return sendCommand(deviceId, command);
+  }
+
+  @override
+  Future<bool?> startLogging(String deviceId, int dataTypeFlags) async {
+    Logger.log("b", "starting logging for device $deviceId with flags $dataTypeFlags");
+
+    // Create start logging command with data type flags
+    final command = Uint8List(2);
+    command[0] = 0x01; // Start logging command ID
+    command[1] = dataTypeFlags & 0xFF; // Data type flags (0x01=Step, 0x02=IMU, 0x04=FSR)
+
+    return sendCommand(deviceId, command);
+  }
+
+  @override
+  Future<bool?> stopLogging(String deviceId) async {
+    Logger.log("b", "stopping logging for device $deviceId");
+
+    // Create stop logging command
+    final command = Uint8List.fromList([0x02]); // Stop logging command ID
+
+    return sendCommand(deviceId, command);
+  }
+
+  @override
+  Future<int?> getNumberOfFiles(String deviceId) async {
+    Logger.log("b", "getting number of files for device $deviceId");
+
+    // Create get number of files command
+    final command = Uint8List.fromList([0x20]); // Get number of files command ID
+
+    final result = await sendCommand(deviceId, command);
+
+    // Note: The actual file count will come back through the methodHandler
+    // This method returns success/failure of sending the command
+    // The file count will be updated in the device's observable
+    return result == true ? 0 : null; // Placeholder - actual count comes via callback
+  }
+
+  @override
+  Future<bool?> getFile(String deviceId, int fileIndex) async {
+    Logger.log("b", "getting file $fileIndex for device $deviceId");
+
+    // Create get file command with file index
+    final command = Uint8List(2);
+    command[0] = 0x21; // Get file command ID
+    command[1] = fileIndex & 0xFF; // File index (1-based)
+
+    return sendCommand(deviceId, command);
+  }
+
+  @override
+  Future<bool?> eraseFile(String deviceId, int fileIndex) async {
+    Logger.log("b", "erasing file $fileIndex for device $deviceId");
+
+    // Create erase file command with file index
+    final command = Uint8List(2);
+    command[0] = 0x30; // Erase file command ID
+    command[1] = fileIndex & 0xFF; // File index (1-based)
+
+    return sendCommand(deviceId, command);
+  }
+
+  @override
+  Future<bool?> eraseLastFile(String deviceId) async {
+    Logger.log("b", "erasing last file for device $deviceId");
+
+    // Create erase last file command (no data bytes)
+    final command = Uint8List.fromList([0x30]); // Erase file command ID with no index
+
+    return sendCommand(deviceId, command);
+  }
+
+  @override
+  Future<bool?> eraseAllFiles(String deviceId) async {
+    Logger.log("b", "erasing all files for device $deviceId");
+
+    // Create erase all files command
+    final command = Uint8List.fromList([0x31]); // Erase all files command ID
+
+    return sendCommand(deviceId, command);
+  }
+
+  @override
+  Future<bool?> getSummaryFile(String deviceId) async {
+    Logger.log("b", "getting summary file for device $deviceId");
+
+    // Create get summary file command
+    final command = Uint8List.fromList([0x22]); // Get summary file command ID
+
+    return sendCommand(deviceId, command);
+  }
+
   LFLiner getDevice(String id) {
     return blueState.activeDevices.value().firstWhere((l) => l.id == id);
   }
@@ -224,7 +334,8 @@ class MethodChannelBlue extends BluePlatform {
 
         if (packet[0] == 0xD5) {
           final data = StepDataPacket(packet);
-          blueState.stepDataCalculator.addStep(Step(data.timestamp.toInt(), data.timestamp.toInt() + data.contactTime.toInt(), device.side));
+          blueState.stepDataCalculator
+              .addStep(Step(data.timestamp.toInt(), data.timestamp.toInt() + data.contactTime.toInt(), device.side));
         }
 
         device.parseAndUpdatePacket(packet);
@@ -244,6 +355,65 @@ class MethodChannelBlue extends BluePlatform {
         device.timer = Timer(const Duration(milliseconds: 1100), () {
           liveStreamPacketTimeout(device);
         });
+
+      // New LAAF protocol file management response handlers
+      case "fileCountResponse":
+        final args = call.arguments as Map;
+        final id = args["id"] as String;
+        final count = args["count"] as int;
+
+        final device = getDevice(id);
+        device.fileCount.update(count);
+        Logger.log("b", "Device $id has $count files");
+
+      case "fileDataChunk":
+        final args = call.arguments as Map;
+        final id = args["id"] as String;
+        final chunk = args["chunk"] as Uint8List;
+        final isComplete = args["isComplete"] as bool? ?? false;
+
+        final device = getDevice(id);
+        device.fileData.update(chunk);
+
+        if (isComplete) {
+          Logger.log("b", "File transfer complete for device $id");
+        }
+
+      case "summaryFileResponse":
+        final args = call.arguments as Map;
+        final id = args["id"] as String;
+        final summaryData = args["data"] as Uint8List;
+
+        final device = getDevice(id);
+        device.summaryFile.update(summaryData);
+        Logger.log("b", "Summary file received for device $id (${summaryData.length} bytes)");
+
+      case "fileOperationComplete":
+        final args = call.arguments as Map;
+        final id = args["id"] as String;
+        final operation = args["operation"] as String;
+        final success = args["success"] as bool;
+
+        final device = getDevice(id);
+        final message = success ? "$operation completed successfully" : "$operation failed";
+        device.message.update(message);
+        Logger.log("b", "Device $id: $message");
+
+      case "loggingStatusUpdate":
+        final args = call.arguments as Map;
+        final id = args["id"] as String;
+        final isLogging = args["isLogging"] as bool;
+        final dataTypes = args["dataTypes"] as int? ?? 0;
+
+        final device = getDevice(id);
+        if (isLogging) {
+          device.loggingDataTypes.update(dataTypes);
+          device.message.update("Logging started with data types: $dataTypes");
+        } else {
+          device.loggingDataTypes.update(0);
+          device.message.update("Logging stopped");
+        }
+        Logger.log("b", "Device $id logging status: $isLogging");
 
       default:
         throw UnimplementedError("a method was called that does not exist: ${call.method}");

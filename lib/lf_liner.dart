@@ -1,27 +1,18 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:blue/fsr_packet.dart';
 import 'package:blue/step_data_packet.dart';
+import 'package:blue/file_metadata.dart';
+import 'package:blue/data_type_flags.dart';
 
+import 'blue.dart';
 import 'device_state.dart';
-import 'dart:typed_data';
 import 'foot.dart';
 import 'observable.dart';
-import 'blue.dart';
-
-import 'dart:async';
 
 /// Class for communication with a LAAF sock liner.
 class LFLiner {
-  LFLiner(this.id, this.name) {
-    deviceState.name = "d_state ($id)";
-    liveStreamPacket.name = "packet ($id)";
-    message.name = "msg ($id)";
-
-    bool isRight = name.contains('R');
-    if (isRight) {
-      side = Foot.right;
-    }
-  }
-
   // This is the 'mac' on android, and generated 'cbuuid' on ios
   final String id;
   final String name;
@@ -41,14 +32,49 @@ class LFLiner {
   /// The last parsed step data packet
   Observable<StepDataPacket> stepPacket = Observable(StepDataPacket.empty());
 
-  /// Values used to determine whether or not the device is still streaming
-  Timer? timer;
-  int lastPacketTime = 0;
-
   /// Messages received from other parts of the library that are
   /// relevant to this particular device (mostly for bluetooth logging /
   /// debugging)
   Observable<String> message = Observable("");
+
+  /// Number of files stored on the device
+  Observable<int> fileCount = Observable(0);
+  
+  /// List of file metadata for files stored on device
+  Observable<List<FileMetadata>> fileList = Observable([]);
+  
+  /// Currently downloading/active file data
+  Observable<FileMetadata> activeFile = Observable(FileMetadata.empty());
+  
+  /// Raw file data being received from device
+  Observable<Uint8List> fileData = Observable(Uint8List.fromList([]));
+  
+  /// Summary file data from device
+  Observable<Uint8List> summaryFile = Observable(Uint8List.fromList([]));
+  
+  /// Current logging data type flags
+  Observable<int> loggingDataTypes = Observable(0);
+
+  LFLiner(this.id, this.name) {
+    deviceState.name = "d_state ($id)";
+    liveStreamPacket.name = "packet ($id)";
+    message.name = "msg ($id)";
+    fileCount.name = "file_count ($id)";
+    fileList.name = "file_list ($id)";
+    activeFile.name = "active_file ($id)";
+    fileData.name = "file_data ($id)";
+    summaryFile.name = "summary_file ($id)";
+    loggingDataTypes.name = "logging_types ($id)";
+
+    bool isRight = name.contains('R');
+    if (isRight) {
+      side = Foot.right;
+    }
+  }
+
+  /// Values used to determine whether or not the device is still streaming
+  Timer? timer;
+  int lastPacketTime = 0;
 
   static LFLiner deviceFromMap(Map map) {
     return LFLiner(map["id"], map["name"]);
@@ -188,6 +214,77 @@ class LFLiner {
     return blue.reset(this);
   }
 
+  // New LAAF protocol file management methods
+
+  /// Set the device time to synchronize with phone. Must be called before logging.
+  Future<bool> setTime({DateTime? timestamp}) {
+    return blue.setTime(this, timestamp: timestamp);
+  }
+
+  /// Start logging with specified data types. Use DataTypeFlags constants.
+  /// Example: startLogging(DataTypeFlags.all) or startLogging(DataTypeFlags.stepData | DataTypeFlags.rawFSR)
+  Future<bool> startLogging(int dataTypeFlags) async {
+    loggingDataTypes.update(dataTypeFlags);
+    return blue.startLogging(this, dataTypeFlags);
+  }
+
+  /// Stop logging. Must be called before retrieving files.
+  Future<bool> stopLogging() async {
+    final result = await blue.stopLogging(this);
+    if (result) {
+      loggingDataTypes.update(0);
+    }
+    return result;
+  }
+
+  /// Get the number of files stored on device. Updates fileCount observable.
+  Future<bool> getNumberOfFiles() {
+    return blue.getNumberOfFiles(this);
+  }
+
+  /// Retrieve a specific file by index (1-based). File data streams through fileData observable.
+  Future<bool> getFile(int fileIndex) {
+    return blue.getFile(this, fileIndex);
+  }
+
+  /// Erase a specific file by index (1-based). Note: This changes indices of remaining files.
+  Future<bool> eraseFile(int fileIndex) {
+    return blue.eraseFile(this, fileIndex);
+  }
+
+  /// Erase the last file. This is the only way to free memory space.
+  Future<bool> eraseLastFile() {
+    return blue.eraseLastFile(this);
+  }
+
+  /// Erase all files on device (format file system).
+  Future<bool> eraseAllFiles() {
+    return blue.eraseAllFiles(this);
+  }
+
+  /// Get summary file for quick access to device data. Data available in summaryFile observable.
+  Future<bool> getSummaryFile() {
+    return blue.getSummaryFile(this);
+  }
+
+  /// Convenience method: Set time and start logging with all data types
+  Future<bool> startFullLogging({DateTime? timestamp}) async {
+    final timeResult = await setTime(timestamp: timestamp);
+    if (timeResult) {
+      return startLogging(DataTypeFlags.all);
+    }
+    return false;
+  }
+
+  /// Convenience method: Stop logging and get file count
+  Future<bool> stopLoggingAndGetFiles() async {
+    final stopResult = await stopLogging();
+    if (stopResult) {
+      return getNumberOfFiles();
+    }
+    return false;
+  }
+
   /// Removes observers from all observable values of the LFLiner that are
   /// associated with the given id.
   void removeAllRelevantObservers(int id) {
@@ -196,6 +293,13 @@ class LFLiner {
     fsrPacket.removeRelevantObservers(id);
     stepPacket.removeRelevantObservers(id);
     liveStreamPacket.removeRelevantObservers(id);
+    // File management observables
+    fileCount.removeRelevantObservers(id);
+    fileList.removeRelevantObservers(id);
+    activeFile.removeRelevantObservers(id);
+    fileData.removeRelevantObservers(id);
+    summaryFile.removeRelevantObservers(id);
+    loggingDataTypes.removeRelevantObservers(id);
   }
 
   /// Remove all the observers associated with this LFLiner.  This can be a little
@@ -207,7 +311,15 @@ class LFLiner {
     liveStreamPacket.removeAllObservers();
     fsrPacket.removeAllObservers();
     stepPacket.removeAllObservers();
+    // File management observables
+    fileCount.removeAllObservers();
+    fileList.removeAllObservers();
+    activeFile.removeAllObservers();
+    fileData.removeAllObservers();
+    summaryFile.removeAllObservers();
+    loggingDataTypes.removeAllObservers();
   }
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -216,5 +328,4 @@ class LFLiner {
       // Include other properties as needed
     };
   }
-
 }

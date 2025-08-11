@@ -368,4 +368,153 @@ class Blue {
       return Future<bool>(() => false);
     }
   }
+
+  // New LAAF protocol methods for file management and enhanced logging
+
+  /// Set the device time to synchronize with the phone before logging.
+  /// This should be called before starting any logging session.
+  Future<bool> setTime(LFLiner device, {DateTime? timestamp}) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      final timeToSet = timestamp ?? DateTime.now();
+      final result = await BluePlatform.instance.setTime(device.id, timeToSet)
+          .timeout(const Duration(seconds: timeUntilTimeout),
+              onTimeout: timeoutFunction("blue.setTime",
+                  device.id.substring(device.id.length - 5)));
+
+      return nonNullResult(result);
+    } else {
+      return Future<bool>(() => false);
+    }
+  }
+
+  /// Start logging with specified data types. Must call setTime() first.
+  /// dataTypeFlags can be combined: DataTypeFlags.stepData | DataTypeFlags.rawIMU
+  Future<bool> startLogging(LFLiner device, int dataTypeFlags) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      final result = await BluePlatform.instance.startLogging(device.id, dataTypeFlags)
+          .timeout(const Duration(seconds: timeUntilTimeout),
+              onTimeout: timeoutFunction("blue.startLogging",
+                  device.id.substring(device.id.length - 5)));
+
+      return nonNullResult(result);
+    } else {
+      return Future<bool>(() => false);
+    }
+  }
+
+  /// Stop logging. Must be called before retrieving files from device.
+  Future<bool> stopLogging(LFLiner device) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      final result = await BluePlatform.instance.stopLogging(device.id)
+          .timeout(const Duration(seconds: timeUntilTimeout),
+              onTimeout: timeoutFunction("blue.stopLogging",
+                  device.id.substring(device.id.length - 5)));
+
+      return nonNullResult(result);
+    } else {
+      return Future<bool>(() => false);
+    }
+  }
+
+  /// Get the number of files stored on the device.
+  /// The actual count will be updated in the device's fileCount observable.
+  Future<bool> getNumberOfFiles(LFLiner device) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      final result = await BluePlatform.instance.getNumberOfFiles(device.id)
+          .timeout(const Duration(seconds: timeUntilTimeout),
+              onTimeout: () {
+                Logger.log("timeout", "timeout occurred in function 'blue.getNumberOfFiles' with device '${device.id.substring(device.id.length - 5)}'");
+                device.remove();
+                return Future<int?>(() => null);
+              });
+
+      return result != null;
+    } else {
+      return Future<bool>(() => false);
+    }
+  }
+
+  /// Retrieve a specific file by index (1-based indexing).
+  /// File data will be streamed through the device's fileData observable.
+  Future<bool> getFile(LFLiner device, int fileIndex) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      if (fileIndex < 1) {
+        Logger.log("blue.getFile", "File index must be >= 1 (1-based indexing)");
+        return Future<bool>(() => false);
+      }
+
+      final result = await BluePlatform.instance.getFile(device.id, fileIndex)
+          .timeout(const Duration(seconds: timeUntilTimeout),
+              onTimeout: timeoutFunction("blue.getFile",
+                  device.id.substring(device.id.length - 5)));
+
+      return nonNullResult(result);
+    } else {
+      return Future<bool>(() => false);
+    }
+  }
+
+  /// Erase a specific file by index (1-based indexing).
+  /// Note: Erasing files changes the indices of remaining files.
+  Future<bool> eraseFile(LFLiner device, int fileIndex) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      if (fileIndex < 1) {
+        Logger.log("blue.eraseFile", "File index must be >= 1 (1-based indexing)");
+        return Future<bool>(() => false);
+      }
+
+      final result = await BluePlatform.instance.eraseFile(device.id, fileIndex)
+          .timeout(const Duration(seconds: timeUntilTimeout),
+              onTimeout: timeoutFunction("blue.eraseFile",
+                  device.id.substring(device.id.length - 5)));
+
+      return nonNullResult(result);
+    } else {
+      return Future<bool>(() => false);
+    }
+  }
+
+  /// Erase the last file. This is the only way to free up memory space.
+  /// Can be called repeatedly to erase files from newest to oldest.
+  Future<bool> eraseLastFile(LFLiner device) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      final result = await BluePlatform.instance.eraseLastFile(device.id)
+          .timeout(const Duration(seconds: timeUntilTimeout),
+              onTimeout: timeoutFunction("blue.eraseLastFile",
+                  device.id.substring(device.id.length - 5)));
+
+      return nonNullResult(result);
+    } else {
+      return Future<bool>(() => false);
+    }
+  }
+
+  /// Erase all files on the device (format file system).
+  Future<bool> eraseAllFiles(LFLiner device) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      final result = await BluePlatform.instance.eraseAllFiles(device.id)
+          .timeout(const Duration(seconds: timeUntilTimeout),
+              onTimeout: timeoutFunction("blue.eraseAllFiles",
+                  device.id.substring(device.id.length - 5)));
+
+      return nonNullResult(result);
+    } else {
+      return Future<bool>(() => false);
+    }
+  }
+
+  /// Get the summary file for quick access to device data.
+  /// Summary data will be available through the device's summaryFile observable.
+  Future<bool> getSummaryFile(LFLiner device) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      final result = await BluePlatform.instance.getSummaryFile(device.id)
+          .timeout(const Duration(seconds: timeUntilTimeout),
+              onTimeout: timeoutFunction("blue.getSummaryFile",
+                  device.id.substring(device.id.length - 5)));
+
+      return nonNullResult(result);
+    } else {
+      return Future<bool>(() => false);
+    }
+  }
 }

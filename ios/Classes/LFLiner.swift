@@ -82,7 +82,7 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
     var bluetoothConnectionProgress = BluetoothConnectionProgress()
     
     public func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
-        flutterMessage("successfully enabled notifications for: \(parseChararcteristic(characteristic: characteristic)) characteristic: \(characteristic.isNotifying)")
+        flutterMessage("successfully enabled notifications for: \(parseCharacteristic(characteristic: characteristic)) characteristic: \(characteristic.isNotifying)")
         
         switch (characteristic) {
         case dataChar:
@@ -103,7 +103,7 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
     }
     
     public func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-        //flutterMessage("new value for \(peripheral.identifier.uuidString) \(parseChararcteristic(characteristic: characteristic)) characteristic: \(characteristic.value!.map { String(format: "%02x", $0)}.joined())", peripheral.identifier.uuidString)
+        //flutterMessage("new value for \(peripheral.identifier.uuidString) \(parseCharacteristic(characteristic: characteristic)) characteristic: \(characteristic.value!.map { String(format: "%02x", $0)}.joined())", peripheral.identifier.uuidString)
         
         if (characteristic == modeChar) {
             var deviceStateInt = characteristic.value![0]
@@ -119,6 +119,98 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
         if (characteristic == liveStreamChar) {
             BluePlugin.fChannel.invokeMethod("liveStreamPacket", arguments: ["id": peripheral.identifier.uuidString, "packet": characteristic.value!])
         }
+        
+        // Handle new LAAF protocol file management responses
+        if (characteristic == dataChar) {
+            guard let data = characteristic.value else { return }
+            
+            // Log all incoming data for debugging
+            let dataHex = data.map { String(format: "%02x", $0) }.joined()
+            flutterMessage("Raw data received: \(dataHex)", peripheral.identifier.uuidString)
+            
+            // Skip empty data
+            if data.count == 0 { return }
+            
+            let commandId = data[0]
+            
+            switch commandId {
+            case 0x20: // Response to "get number of files" command
+                if data.count >= 2 {
+                    let fileCount = Int(data[1])
+                    flutterMessage("Device has \(fileCount) files", peripheral.identifier.uuidString)
+                    BluePlugin.fChannel.invokeMethod("fileCountResponse", arguments: [
+                        "id": peripheral.identifier.uuidString,
+                        "count": fileCount
+                    ])
+                } else {
+                    flutterMessage("Invalid file count response format", peripheral.identifier.uuidString)
+                }
+                
+            case 0x21: // Response to "get file" command - file data chunk
+                if data.count > 1 {
+                    let fileData = data.subdata(in: 1..<data.count)
+                    flutterMessage("Received file data chunk (\(fileData.count) bytes)", peripheral.identifier.uuidString)
+                    BluePlugin.fChannel.invokeMethod("fileDataChunk", arguments: [
+                        "id": peripheral.identifier.uuidString,
+                        "chunk": fileData,
+                        "isComplete": false // You may need to determine this based on your protocol
+                    ])
+                }
+                
+            case 0x22: // Response to "get summary file" command
+                if data.count > 1 {
+                    let summaryData = data.subdata(in: 1..<data.count)
+                    flutterMessage("Received summary file (\(summaryData.count) bytes)", peripheral.identifier.uuidString)
+                    BluePlugin.fChannel.invokeMethod("summaryFileResponse", arguments: [
+                        "id": peripheral.identifier.uuidString,
+                        "data": summaryData
+                    ])
+                }
+                
+            case 0x30, 0x31: // Response to erase file commands
+                let success = data.count > 1 ? data[1] == 0x01 : true
+                let operation = commandId == 0x30 ? "eraseFile" : "eraseAllFiles"
+                flutterMessage("File operation \(operation): \(success ? "success" : "failed")", peripheral.identifier.uuidString)
+                BluePlugin.fChannel.invokeMethod("fileOperationComplete", arguments: [
+                    "id": peripheral.identifier.uuidString,
+                    "operation": operation,
+                    "success": success
+                ])
+                
+            case 0x01, 0x02: // Response to start/stop logging commands
+                let isLogging = commandId == 0x01
+                let dataTypes = data.count > 1 ? Int(data[1]) : 0
+                
+                // Validate data types - only accept valid LAAF protocol flags
+                let validDataTypes = [0, 1, 2, 3, 4, 5, 6, 7] // Valid combinations of Step(1), IMU(2), FSR(4)
+                
+                if isLogging && !validDataTypes.contains(dataTypes) {
+                    flutterMessage("Invalid data type flags: \(dataTypes) - ignoring spurious logging command", peripheral.identifier.uuidString)
+                    break
+                }
+                
+                // Only process if this looks like a legitimate command response
+                // Real logging responses should be short (2-3 bytes max)
+                if data.count > 3 {
+                    flutterMessage("Logging response too long (\(data.count) bytes) - likely sensor data, ignoring", peripheral.identifier.uuidString)
+                    break
+                }
+                
+                flutterMessage("Logging status update: \(isLogging ? "started" : "stopped") with data types: \(dataTypes)", peripheral.identifier.uuidString)
+                BluePlugin.fChannel.invokeMethod("loggingStatusUpdate", arguments: [
+                    "id": peripheral.identifier.uuidString,
+                    "isLogging": isLogging,
+                    "dataTypes": dataTypes
+                ])
+                
+            default:
+                // Only log if it's a short packet that might be a command response
+                // Ignore long sensor data packets
+                if data.count <= 4 {
+                    flutterMessage("Unknown command response: 0x\(String(format: "%02x", commandId)) (\(data.count) bytes)", peripheral.identifier.uuidString)
+                }
+            }
+        }
     }
     
     public func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
@@ -132,14 +224,14 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
             val = characteristic.value!.map { String(format: "%02x", $0)}.joined()
         }
         
-        flutterMessage("new value written for \(peripheral.identifier.uuidString) \(parseChararcteristic(characteristic: characteristic)) characteristic: \(val)", peripheral.identifier.uuidString)
+        flutterMessage("new value written for \(peripheral.identifier.uuidString) \(parseCharacteristic(characteristic: characteristic)) characteristic: \(val)", peripheral.identifier.uuidString)
         
         if (characteristic == commandChar) {
             writeResult!(true)
         }
     }
     
-    func parseChararcteristic(characteristic: CBCharacteristic) -> String{
+    func parseCharacteristic(characteristic: CBCharacteristic) -> String{
         var c = "?"
                 
         switch (characteristic) {

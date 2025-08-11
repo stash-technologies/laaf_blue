@@ -59,6 +59,43 @@ abstract class BluePlatform extends PlatformInterface {
     throw UnimplementedError('reset() has not been implemented');
   }
 
+  // New LAAF protocol methods for file management and enhanced logging
+  Future<bool?> setTime(String deviceId, DateTime timestamp) {
+    throw UnimplementedError('setTime() has not been implemented');
+  }
+
+  Future<bool?> startLogging(String deviceId, int dataTypeFlags) {
+    throw UnimplementedError('startLogging() has not been implemented');
+  }
+
+  Future<bool?> stopLogging(String deviceId) {
+    throw UnimplementedError('stopLogging() has not been implemented');
+  }
+
+  Future<int?> getNumberOfFiles(String deviceId) {
+    throw UnimplementedError('getNumberOfFiles() has not been implemented');
+  }
+
+  Future<bool?> getFile(String deviceId, int fileIndex) {
+    throw UnimplementedError('getFile() has not been implemented');
+  }
+
+  Future<bool?> eraseFile(String deviceId, int fileIndex) {
+    throw UnimplementedError('eraseFile() has not been implemented');
+  }
+
+  Future<bool?> eraseLastFile(String deviceId) {
+    throw UnimplementedError('eraseLastFile() has not been implemented');
+  }
+
+  Future<bool?> eraseAllFiles(String deviceId) {
+    throw UnimplementedError('eraseAllFiles() has not been implemented');
+  }
+
+  Future<bool?> getSummaryFile(String deviceId) {
+    throw UnimplementedError('getSummaryFile() has not been implemented');
+  }
+
   BlueState getBlueState() {
     return _instance.getBlueState();
   }
