@@ -157,7 +157,7 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
                     ])
                 }
                 
-            case 0x22: // Response to "get summary file" command
+            case 0x10: // Response to "get summary file" command
                 if data.count > 1 {
                     let summaryData = data.subdata(in: 1..<data.count)
                     flutterMessage("Received summary file (\(summaryData.count) bytes)", peripheral.identifier.uuidString)
