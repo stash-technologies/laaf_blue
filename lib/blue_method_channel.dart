@@ -211,7 +211,7 @@ class MethodChannelBlue extends BluePlatform {
 
     // Create erase file command with file index
     final command = Uint8List(2);
-    command[0] = 0x30; // Erase file command ID
+    command[0] = 0x22; // Erase file command ID
     command[1] = fileIndex & 0xFF; // File index (1-based)
 
     return sendCommand(deviceId, command);
@@ -222,7 +222,7 @@ class MethodChannelBlue extends BluePlatform {
     Logger.log("b", "erasing last file for device $deviceId");
 
     // Create erase last file command (no data bytes)
-    final command = Uint8List.fromList([0x30]); // Erase file command ID with no index
+    final command = Uint8List.fromList([0x22]); // Erase file command ID with no index
 
     return sendCommand(deviceId, command);
   }
@@ -232,7 +232,7 @@ class MethodChannelBlue extends BluePlatform {
     Logger.log("b", "erasing all files for device $deviceId");
 
     // Create erase all files command
-    final command = Uint8List.fromList([0x31]); // Erase all files command ID
+    final command = Uint8List.fromList([0x29]); // Erase all files command ID
 
     return sendCommand(deviceId, command);
   }
@@ -242,7 +242,7 @@ class MethodChannelBlue extends BluePlatform {
     Logger.log("b", "getting summary file for device $deviceId");
 
     // Create get summary file command
-    final command = Uint8List.fromList([0x22]); // Get summary file command ID
+    final command = Uint8List.fromList([0x10]); // Get summary file command ID
 
     return sendCommand(deviceId, command);
   }
