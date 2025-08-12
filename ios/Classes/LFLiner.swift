@@ -167,9 +167,9 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
                     ])
                 }
                 
-            case 0x30, 0x31: // Response to erase file commands
+            case 0x22, 0x29: // Response to erase file commands
                 let success = data.count > 1 ? data[1] == 0x01 : true
-                let operation = commandId == 0x30 ? "eraseFile" : "eraseAllFiles"
+                let operation = commandId == 0x22 ? "eraseFile" : "eraseAllFiles"
                 flutterMessage("File operation \(operation): \(success ? "success" : "failed")", peripheral.identifier.uuidString)
                 BluePlugin.fChannel.invokeMethod("fileOperationComplete", arguments: [
                     "id": peripheral.identifier.uuidString,
