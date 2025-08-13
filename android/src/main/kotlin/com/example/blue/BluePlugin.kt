@@ -12,6 +12,7 @@ import androidx.core.content.ContextCompat
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
@@ -37,6 +38,14 @@ class BluePlugin: FlutterPlugin, MethodCallHandler, ActivityAware, PluginRegistr
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "blue")
         channel.setMethodCallHandler(this)
         context = flutterPluginBinding.applicationContext
+        bluetoothManager = BluetoothManagerWrapper(context, channel)
+    }
+
+    // Legacy registration method for older Flutter versions
+    fun onAttachedToEngine(messenger: BinaryMessenger, context: Context) {
+        channel = MethodChannel(messenger, "blue")
+        channel.setMethodCallHandler(this)
+        this.context = context
         bluetoothManager = BluetoothManagerWrapper(context, channel)
     }
 

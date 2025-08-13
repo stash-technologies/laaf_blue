@@ -5,6 +5,7 @@ import android.bluetooth.le.*
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.ParcelUuid
 import android.util.Log
 import io.flutter.plugin.common.MethodChannel
 import java.util.*
