@@ -195,6 +195,7 @@ class LFLiner {
   }
 
   /// Parses a raw packet, and updates the appropriate packet observable.
+  /// Used for live streaming data only.
   void parseAndUpdatePacket(Uint8List rawPacket) {
     switch (rawPacket[0]) {
       case 0xD5:
@@ -204,6 +205,99 @@ class LFLiner {
         fsrPacket.update(FSRPacket(rawPacket));
         break;
     }
+  }
+
+  /// Parses file data containing multiple packets and returns parsed packets.
+  /// File data format: raw packets concatenated together with Unix timestamps.
+  List<Map<String, dynamic>> parseFileData(Uint8List fileData) {
+    List<Map<String, dynamic>> parsedPackets = [];
+    int offset = 0;
+    
+    while (offset < fileData.length) {
+      if (offset >= fileData.length) break;
+      
+      int packetId = fileData[offset];
+      Map<String, dynamic>? packet;
+      
+      switch (packetId) {
+        case 0xD5:
+          if (offset + 24 <= fileData.length) {
+            packet = parseRawStepDataPacket(fileData.sublist(offset, offset + 24));
+            offset += 24;
+          } else {
+            offset = fileData.length; // End parsing if incomplete packet
+          }
+          break;
+        case 0xE0:
+          if (offset + 21 <= fileData.length) {
+            packet = parseRawFSRDataPacket(fileData.sublist(offset, offset + 21));
+            offset += 21;
+          } else {
+            offset = fileData.length; // End parsing if incomplete packet
+          }
+          break;
+        default:
+          offset++; // Skip unknown packet types
+          break;
+      }
+      
+      if (packet != null) {
+        parsedPackets.add(packet);
+      }
+    }
+    
+    return parsedPackets;
+  }
+
+  /// Parses raw step data packet from file (24 bytes, same format as live streaming)
+  Map<String, dynamic> parseRawStepDataPacket(Uint8List packet) {
+    if (packet.length != 24 || packet[0] != 0xD5) {
+      throw ArgumentError('Invalid step data packet');
+    }
+    
+    // Parse using little-endian format
+    final data = ByteData.sublistView(packet);
+    
+    return {
+      'packetType': 'stepData',
+      'packetId': packet[0],
+      'timestamp': data.getUint32(1, Endian.little), // milliseconds from start
+      'heelStrikeAngle': data.getInt16(5, Endian.little) / 100.0, // degrees
+      'pronationAngle': data.getInt16(7, Endian.little) / 100.0, // degrees  
+      'cadence': packet[9], // steps/min
+      'speed': data.getUint16(10, Endian.little) / 1000.0, // m/s
+      'strideTime': data.getUint16(12, Endian.little), // ms/step
+      'strideLength': packet[14] / 100.0, // m/step
+      'contactTime': data.getUint16(15, Endian.little), // ms
+      'swingTime': data.getUint16(17, Endian.little), // ms
+      'stepClearance': packet[19], // mm
+      'totalSteps': data.getUint16(20, Endian.little), // steps
+      'totalDistance': data.getUint16(22, Endian.little), // m
+    };
+  }
+
+  /// Parses raw FSR data packet from file (21 bytes with Unix timestamp)
+  Map<String, dynamic> parseRawFSRDataPacket(Uint8List packet) {
+    if (packet.length != 21 || packet[0] != 0xE0) {
+      throw ArgumentError('Invalid FSR data packet');
+    }
+    
+    // Parse using little-endian format
+    final data = ByteData.sublistView(packet);
+    
+    return {
+      'packetType': 'fsrData',
+      'packetId': packet[0],
+      'timestampSeconds': data.getUint32(1, Endian.little), // Unix timestamp seconds
+      'timestampMilliseconds': data.getUint16(5, Endian.little), // milliseconds
+      'fsr1': data.getUint16(7, Endian.little), // A/D units
+      'fsr2': data.getUint16(9, Endian.little), // A/D units
+      'fsr3': data.getUint16(11, Endian.little), // A/D units
+      'fsr4': data.getUint16(13, Endian.little), // A/D units
+      'fsr5': data.getUint16(15, Endian.little), // A/D units
+      'fsr6': data.getUint16(17, Endian.little), // A/D units
+      'fsr7': data.getUint16(19, Endian.little), // A/D units
+    };
   }
 
   /// Reset the device.  This returns 'true' if the command was sent
