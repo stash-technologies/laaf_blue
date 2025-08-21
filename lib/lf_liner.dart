@@ -213,39 +213,60 @@ class LFLiner {
     List<Map<String, dynamic>> parsedPackets = [];
     int offset = 0;
     
+    print('File data length: ${fileData.length}');
+    print('First 20 bytes: ${fileData.take(20).toList()}');
+    
     while (offset < fileData.length) {
       if (offset >= fileData.length) break;
       
       int packetId = fileData[offset];
+      print('Offset $offset: Found packet ID 0x${packetId.toRadixString(16).padLeft(2, '0')} ($packetId)');
+      
       Map<String, dynamic>? packet;
       
       switch (packetId) {
-        case 0xD5:
+        case 0xD5: // 213
           if (offset + 24 <= fileData.length) {
+            print('Parsing step data packet at offset $offset');
             packet = parseRawStepDataPacket(fileData.sublist(offset, offset + 24));
             offset += 24;
           } else {
-            offset = fileData.length; // End parsing if incomplete packet
+            print('Incomplete step data packet at offset $offset');
+            offset = fileData.length;
           }
           break;
-        case 0xE0:
+        case 0xE0: // 224
           if (offset + 21 <= fileData.length) {
+            print('Parsing FSR data packet at offset $offset');
             packet = parseRawFSRDataPacket(fileData.sublist(offset, offset + 21));
             offset += 21;
           } else {
-            offset = fileData.length; // End parsing if incomplete packet
+            print('Incomplete FSR data packet at offset $offset');
+            offset = fileData.length;
+          }
+          break;
+        case 0xD0: // 208 - Raw IMU (skip as requested)
+          if (offset + 19 <= fileData.length) {
+            print('Skipping raw IMU packet at offset $offset');
+            offset += 19;
+          } else {
+            print('Incomplete raw IMU packet at offset $offset');
+            offset = fileData.length;
           }
           break;
         default:
-          offset++; // Skip unknown packet types
+          print('Unknown packet ID 0x${packetId.toRadixString(16)} at offset $offset, skipping');
+          offset++;
           break;
       }
       
       if (packet != null) {
         parsedPackets.add(packet);
+        print('Successfully parsed packet: ${packet['packetType']}');
       }
     }
     
+    print('Total packets parsed: ${parsedPackets.length}');
     return parsedPackets;
   }
 
