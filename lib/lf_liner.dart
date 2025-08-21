@@ -163,7 +163,7 @@ class LFLiner {
     final result = await blue.startStream(this);
 
     if (result == true) {
-      return blue.startLog(this);
+      return blue.startLogging(this, DataTypeFlags.all);
     } else {
       return result;
     }
@@ -172,7 +172,7 @@ class LFLiner {
   /// Stop live streaming.  Returns 'true' if the stop log and stop stream commands
   /// were sent to the device.
   Future<bool> stopLiveStream() async {
-    final result = await blue.stopLog(this);
+    final result = await blue.stopLogging(this);
 
     if (result == true) {
       return blue.stopStream(this);
