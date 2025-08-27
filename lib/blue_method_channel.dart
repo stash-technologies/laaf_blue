@@ -266,6 +266,9 @@ class MethodChannelBlue extends BluePlatform {
         final message = args["message"] as String;
 
         if (id != "general") {
+          if (blueState.activeDevices.value().isEmpty) {
+            return;
+          }
           LFLiner device = getDevice(id);
 
           device.message.update(message);
@@ -293,6 +296,9 @@ class MethodChannelBlue extends BluePlatform {
         final DeviceState updatedState = DeviceState.values[args["state"] as int];
         Logger.log("b", "device state update: $id / $updatedState");
 
+        if (blueState.activeDevices.value().isEmpty) {
+          return;
+        }
         final device = getDevice(id);
 
         // clear messages
@@ -307,6 +313,9 @@ class MethodChannelBlue extends BluePlatform {
       case "deviceDisconnected":
         final id = call.arguments as String;
 
+        if (blueState.activeDevices.value().isEmpty) {
+          return;
+        }
         final device = getDevice(id);
 
         device.deviceState.update(DeviceState.disconnected);
@@ -326,6 +335,9 @@ class MethodChannelBlue extends BluePlatform {
         final id = args["id"] as String;
         final packet = args["packet"] as Uint8List;
 
+        if (blueState.activeDevices.value().isEmpty) {
+          return;
+        }
         final device = getDevice(id);
 
         if (device.liveStreamPacket.hasObservers()) {
@@ -362,6 +374,9 @@ class MethodChannelBlue extends BluePlatform {
         final id = args["id"] as String;
         final count = args["count"] as int;
 
+        if (blueState.activeDevices.value().isEmpty) {
+          return;
+        }
         final device = getDevice(id);
         device.fileCount.update(count);
         Logger.log("b", "Device $id has $count files");
@@ -372,6 +387,9 @@ class MethodChannelBlue extends BluePlatform {
         final chunk = args["chunk"] as Uint8List;
         final isComplete = args["isComplete"] as bool? ?? false;
 
+        if (blueState.activeDevices.value().isEmpty) {
+          return;
+        }
         final device = getDevice(id);
         device.fileData.update(chunk);
 
@@ -384,6 +402,9 @@ class MethodChannelBlue extends BluePlatform {
         final id = args["id"] as String;
         final summaryData = args["data"] as Uint8List;
 
+        if (blueState.activeDevices.value().isEmpty) {
+          return;
+        }
         final device = getDevice(id);
         device.summaryFile.update(summaryData);
         Logger.log("b", "Summary file received for device $id (${summaryData.length} bytes)");
@@ -394,6 +415,9 @@ class MethodChannelBlue extends BluePlatform {
         final operation = args["operation"] as String;
         final success = args["success"] as bool;
 
+        if (blueState.activeDevices.value().isEmpty) {
+          return;
+        }
         final device = getDevice(id);
         final message = success ? "$operation completed successfully" : "$operation failed";
         device.message.update(message);
@@ -405,6 +429,9 @@ class MethodChannelBlue extends BluePlatform {
         final isLogging = args["isLogging"] as bool;
         final dataTypes = args["dataTypes"] as int? ?? 0;
 
+        if (blueState.activeDevices.value().isEmpty) {
+          return;
+        }
         final device = getDevice(id);
         if (isLogging) {
           device.loggingDataTypes.update(dataTypes);
