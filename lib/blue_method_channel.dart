@@ -20,239 +20,340 @@ class MethodChannelBlue extends BluePlatform {
   final blueState = BlueState();
 
   MethodChannelBlue() {
-    methodChannel.setMethodCallHandler(methodHandler);
+    try {
+      methodChannel.setMethodCallHandler(methodHandler);
+    } catch (e) {
+      Logger.log("b error", "Constructor error: $e");
+    }
   }
 
   @override
   BlueState getBlueState() {
-    return blueState;
+    try {
+      return blueState;
+    } catch (e) {
+      Logger.log("b error", "Get blue state error: $e");
+      return BlueState();
+    }
   }
 
   @override
   Future<bool?> initializeBluetooth() async {
-    final uuids = [
-      "00008801-0000-1000-8000-00805f9b34fb", // general service uuid
-      "00008811-0000-1000-8000-00805f9b34fb", // command char uuid
-      "00008812-0000-1000-8000-00805f9b34fb", // data char uuid
-      "00008813-0000-1000-8000-00805f9b34fb", // mode char uuid
-      "0000880E-0000-1000-8000-00805f9b34fb" // live stream data uuid
-    ];
-    final result = await methodChannel.invokeMethod<bool>('initializeBluetooth', uuids);
+    try {
+      final uuids = [
+        "00008801-0000-1000-8000-00805f9b34fb", // general service uuid
+        "00008811-0000-1000-8000-00805f9b34fb", // command char uuid
+        "00008812-0000-1000-8000-00805f9b34fb", // data char uuid
+        "00008813-0000-1000-8000-00805f9b34fb", // mode char uuid
+        "0000880E-0000-1000-8000-00805f9b34fb" // live stream data uuid
+      ];
+      final result = await methodChannel.invokeMethod<bool>('initializeBluetooth', uuids);
 
-    return result;
+      return result;
+    } catch (e) {
+      Logger.log("b error", "Initialize bluetooth error: $e");
+      return false;
+    }
   }
 
   @override
   Future<bool?> scan(int duration) async {
-    final scanResult = await methodChannel.invokeMethod<bool?>('scan', duration);
+    try {
+      final scanResult = await methodChannel.invokeMethod<bool?>('scan', duration);
 
-    if (scanResult!) {
-      Logger.log("b", "updating bluestate scanning status...");
-      blueState.scanning.update(true);
-    } else {
-      Logger.log("b", "you are already scanning...");
-      return Future<bool?>(() => false);
+      if (scanResult!) {
+        Logger.log("b", "updating bluestate scanning status...");
+        blueState.scanning.update(true);
+      } else {
+        Logger.log("b", "you are already scanning...");
+        return Future<bool?>(() => false);
+      }
+
+      await Future.delayed(Duration(milliseconds: duration));
+
+      final stopScanResult = await methodChannel.invokeMethod<bool?>('stopScan');
+
+      blueState.scanning.update(!stopScanResult!);
+
+      return stopScanResult;
+    } catch (e) {
+      Logger.log("b error", "Scan error: $e");
+      blueState.scanning.update(false);
+      return false;
     }
-
-    await Future.delayed(Duration(milliseconds: duration));
-
-    final stopScanResult = await methodChannel.invokeMethod<bool?>('stopScan');
-
-    blueState.scanning.update(!stopScanResult!);
-
-    return stopScanResult;
   }
 
   @override
   Future<bool?> stopScan() async {
-    if (!blueState.scanning.value()) {
-      Logger.log("b warning", "a 'stopScan' was attempted when no scan was in progress");
-      return Future<bool?>(() => false);
-    }
+    try {
+      if (!blueState.scanning.value()) {
+        Logger.log("b warning", "a 'stopScan' was attempted when no scan was in progress");
+        return Future<bool?>(() => false);
+      }
 
-    final result = await methodChannel.invokeMethod<bool?>('stopScan');
+      final result = await methodChannel.invokeMethod<bool?>('stopScan');
 
-    if (result!) {
+      if (result!) {
+        blueState.scanning.update(false);
+      } else {
+        // something went wrong...
+        Logger.log("b warning", "failed to 'stopScan'");
+      }
+
+      return result;
+    } catch (e) {
+      Logger.log("b error", "Stop scan error: $e");
       blueState.scanning.update(false);
-    } else {
-      // something went wrong...
-      Logger.log("b warning", "failed to 'stopScan'");
+      return false;
     }
-
-    return result;
   }
 
   @override
   Future<bool?> connect(String deviceId) async {
-    Logger.log("b", "connecting to device $deviceId");
+    try {
+      Logger.log("b", "connecting to device $deviceId");
 
-    final result = await methodChannel.invokeMethod<bool?>('connect', deviceId);
+      final result = await methodChannel.invokeMethod<bool?>('connect', deviceId);
 
-    return result;
+      return result;
+    } catch (e) {
+      Logger.log("b error", "Connect error for device $deviceId: $e");
+      return false;
+    }
   }
 
   @override
   Future<bool?> checkMode(String deviceId) async {
-    Logger.log("b", "checking mode of device $deviceId");
-    final result = await methodChannel.invokeMethod<bool?>('checkMode', deviceId);
+    try {
+      Logger.log("b", "checking mode of device $deviceId");
+      final result = await methodChannel.invokeMethod<bool?>('checkMode', deviceId);
 
-    return result;
+      return result;
+    } catch (e) {
+      Logger.log("b error", "Check mode error for device $deviceId: $e");
+      return false;
+    }
   }
 
   List<String> devicesStagedForDisconnection = [];
 
   @override
-  @override
   Future<bool?> disconnect(String deviceId, {bool keepAround = true}) async {
-    Logger.log("b", "disconnecting device $deviceId");
+    try {
+      Logger.log("b", "disconnecting device $deviceId");
 
-    if (keepAround && !devicesStagedForDisconnection.contains(deviceId)) {
-      devicesStagedForDisconnection.add(deviceId);
+      if (keepAround && !devicesStagedForDisconnection.contains(deviceId)) {
+        devicesStagedForDisconnection.add(deviceId);
+      }
+
+      final result = await methodChannel.invokeMethod<bool?>('disconnect', deviceId);
+
+      return result;
+    } catch (e) {
+      Logger.log("b error", "Disconnect error for device $deviceId: $e");
+      return false;
     }
-
-    final result = await methodChannel.invokeMethod<bool?>('disconnect', deviceId);
-
-    return result;
   }
 
   @override
   Future<bool?> reset(String deviceId) async {
-    Logger.log("b", "resetting: $deviceId");
-    final args = {
-      "device": deviceId,
-      "command": Uint8List.fromList([0x51])
-    };
-    final result = await methodChannel.invokeMethod<bool?>('sendCommand', args);
+    try {
+      Logger.log("b", "resetting: $deviceId");
+      final args = {
+        "device": deviceId,
+        "command": Uint8List.fromList([0x51])
+      };
+      final result = await methodChannel.invokeMethod<bool?>('sendCommand', args);
 
-    return result;
+      return result;
+    } catch (e) {
+      Logger.log("b error", "Reset error for device $deviceId: $e");
+      return false;
+    }
   }
 
   @override
   Future<bool?> sendCommand(String deviceId, Uint8List command) async {
-    Logger.log("b", "sending command $command to $deviceId");
+    try {
+      Logger.log("b", "sending command $command to $deviceId");
 
-    final args = {"device": deviceId, "command": command};
-    final result = await methodChannel.invokeMethod<bool?>('sendCommand', args);
+      final args = {"device": deviceId, "command": command};
+      final result = await methodChannel.invokeMethod<bool?>('sendCommand', args);
 
-    return result;
+      return result;
+    } catch (e) {
+      Logger.log("b error", "Send command error for device $deviceId: $e");
+      return false;
+    }
   }
 
   // New LAAF protocol method implementations
   @override
   Future<bool?> setTime(String deviceId, DateTime timestamp) async {
-    Logger.log("b", "setting time for device $deviceId to $timestamp");
+    try {
+      Logger.log("b", "setting time for device $deviceId to $timestamp");
 
-    // Convert DateTime to Unix timestamp (seconds since epoch)
-    final unixTimestamp = timestamp.millisecondsSinceEpoch ~/ 1000;
+      // Convert DateTime to Unix timestamp (seconds since epoch)
+      final unixTimestamp = timestamp.millisecondsSinceEpoch ~/ 1000;
 
-    // Create set time command with Unix timestamp (4 bytes, little-endian)
-    final command = Uint8List(5);
-    command[0] = 0x10; // Set time command ID
-    command[1] = (unixTimestamp & 0xFF);
-    command[2] = ((unixTimestamp >> 8) & 0xFF);
-    command[3] = ((unixTimestamp >> 16) & 0xFF);
-    command[4] = ((unixTimestamp >> 24) & 0xFF);
+      // Create set time command with Unix timestamp (4 bytes, little-endian)
+      final command = Uint8List(5);
+      command[0] = 0x10; // Set time command ID
+      command[1] = (unixTimestamp & 0xFF);
+      command[2] = ((unixTimestamp >> 8) & 0xFF);
+      command[3] = ((unixTimestamp >> 16) & 0xFF);
+      command[4] = ((unixTimestamp >> 24) & 0xFF);
 
-    return sendCommand(deviceId, command);
+      return await sendCommand(deviceId, command);
+    } catch (e) {
+      Logger.log("b error", "Set time error for device $deviceId: $e");
+      return false;
+    }
   }
 
   @override
   Future<bool?> startLogging(String deviceId, int dataTypeFlags) async {
-    Logger.log("b", "starting logging for device $deviceId with flags $dataTypeFlags");
+    try {
+      Logger.log("b", "starting logging for device $deviceId with flags $dataTypeFlags");
 
-    // Create start logging command with data type flags
-    final command = Uint8List(2);
-    command[0] = 0x01; // Start logging command ID
-    command[1] = dataTypeFlags & 0xFF; // Data type flags (0x01=Step, 0x02=IMU, 0x04=FSR)
+      // Create start logging command with data type flags
+      final command = Uint8List(2);
+      command[0] = 0x01; // Start logging command ID
+      command[1] = dataTypeFlags & 0xFF; // Data type flags (0x01=Step, 0x02=IMU, 0x04=FSR)
 
-    return sendCommand(deviceId, command);
+      return await sendCommand(deviceId, command);
+    } catch (e) {
+      Logger.log("b error", "Start logging error for device $deviceId: $e");
+      return false;
+    }
   }
 
   @override
   Future<bool?> stopLogging(String deviceId) async {
-    Logger.log("b", "stopping logging for device $deviceId");
+    try {
+      Logger.log("b", "stopping logging for device $deviceId");
 
-    // Create stop logging command
-    final command = Uint8List.fromList([0x02]); // Stop logging command ID
+      // Create stop logging command
+      final command = Uint8List.fromList([0x02]); // Stop logging command ID
 
-    return sendCommand(deviceId, command);
+      return await sendCommand(deviceId, command);
+    } catch (e) {
+      Logger.log("b error", "Stop logging error for device $deviceId: $e");
+      return false;
+    }
   }
 
   @override
   Future<int?> getNumberOfFiles(String deviceId) async {
-    Logger.log("b", "getting number of files for device $deviceId");
+    try {
+      Logger.log("b", "getting number of files for device $deviceId");
 
-    // Create get number of files command
-    final command = Uint8List.fromList([0x20]); // Get number of files command ID
+      // Create get number of files command
+      final command = Uint8List.fromList([0x20]); // Get number of files command ID
 
-    final result = await sendCommand(deviceId, command);
+      final result = await sendCommand(deviceId, command);
 
-    // Note: The actual file count will come back through the methodHandler
-    // This method returns success/failure of sending the command
-    // The file count will be updated in the device's observable
-    return result == true ? 0 : null; // Placeholder - actual count comes via callback
+      // Note: The actual file count will come back through the methodHandler
+      // This method returns success/failure of sending the command
+      // The file count will be updated in the device's observable
+      return result == true ? 0 : null; // Placeholder - actual count comes via callback
+    } catch (e) {
+      Logger.log("b error", "Get number of files error for device $deviceId: $e");
+      return null;
+    }
   }
 
   @override
   Future<bool?> getFile(String deviceId, int fileIndex) async {
-    Logger.log("b", "getting file $fileIndex for device $deviceId");
+    try {
+      Logger.log("b", "getting file $fileIndex for device $deviceId");
 
-    // Create get file command with file index
-    final command = Uint8List(2);
-    command[0] = 0x21; // Get file command ID
-    command[1] = fileIndex & 0xFF; // File index (1-based)
+      // Create get file command with file index
+      final command = Uint8List(2);
+      command[0] = 0x21; // Get file command ID
+      command[1] = fileIndex & 0xFF; // File index (1-based)
 
-    return sendCommand(deviceId, command);
+      return await sendCommand(deviceId, command);
+    } catch (e) {
+      Logger.log("b error", "Get file error for device $deviceId: $e");
+      return false;
+    }
   }
 
   @override
   Future<bool?> eraseFile(String deviceId, int fileIndex) async {
-    Logger.log("b", "erasing file $fileIndex for device $deviceId");
+    try {
+      Logger.log("b", "erasing file $fileIndex for device $deviceId");
 
-    // Create erase file command with file index
-    final command = Uint8List(2);
-    command[0] = 0x22; // Correct erase file command ID
-    command[1] = fileIndex & 0xFF; // File index (1-based)
+      // Create erase file command with file index
+      final command = Uint8List(2);
+      command[0] = 0x22; // Correct erase file command ID
+      command[1] = fileIndex & 0xFF; // File index (1-based)
 
-    return sendCommand(deviceId, command);
+      return await sendCommand(deviceId, command);
+    } catch (e) {
+      Logger.log("b error", "Erase file error for device $deviceId: $e");
+      return false;
+    }
   }
 
   @override
   Future<bool?> eraseLastFile(String deviceId) async {
-    Logger.log("b", "erasing last file for device $deviceId");
+    try {
+      Logger.log("b", "erasing last file for device $deviceId");
 
-    // Create erase last file command (no data bytes)
-    final command = Uint8List.fromList([0x22]); // Correct erase file command ID with no index
+      // Create erase last file command (no data bytes)
+      final command = Uint8List.fromList([0x22]); // Correct erase file command ID with no index
 
-    return sendCommand(deviceId, command);
+      return await sendCommand(deviceId, command);
+    } catch (e) {
+      Logger.log("b error", "Erase last file error for device $deviceId: $e");
+      return false;
+    }
   }
 
   @override
   Future<bool?> eraseAllFiles(String deviceId) async {
-    Logger.log("b", "erasing all files for device $deviceId");
+    try {
+      Logger.log("b", "erasing all files for device $deviceId");
 
-    // Create erase all files command
-    final command = Uint8List.fromList([0x29]); // Correct erase all files command ID
+      // Create erase all files command
+      final command = Uint8List.fromList([0x29]); // Correct erase all files command ID
 
-    return sendCommand(deviceId, command);
+      return await sendCommand(deviceId, command);
+    } catch (e) {
+      Logger.log("b error", "Erase all files error for device $deviceId: $e");
+      return false;
+    }
   }
 
   @override
   Future<bool?> getSummaryFile(String deviceId) async {
-    Logger.log("b", "getting summary file for device $deviceId");
+    try {
+      Logger.log("b", "getting summary file for device $deviceId");
 
-    // Create get summary file command
-    final command = Uint8List.fromList([0x10]); // Get summary file command ID
+      // Create get summary file command
+      final command = Uint8List.fromList([0x10]); // Get summary file command ID
 
-    return sendCommand(deviceId, command);
+      return await sendCommand(deviceId, command);
+    } catch (e) {
+      Logger.log("b error", "Get summary file error for device $deviceId: $e");
+      return false;
+    }
   }
 
   LFLiner getDevice(String id) {
-    return blueState.activeDevices.value().firstWhere((l) => l.id == id);
+    try {
+      return blueState.activeDevices.value().firstWhere((l) => l.id == id);
+    } catch (e) {
+      Logger.log("b error", "Get device error for id $id: $e");
+      return LFLiner.emptyDevice();
+    }
   }
 
   Future<void> methodHandler(MethodCall call) async {
-    switch (call.method) {
+    try {
+      switch (call.method) {
       case "bluetoothStateUpdate":
         final state = BluetoothStatus.values[(call.arguments as int)];
 
@@ -442,12 +543,19 @@ class MethodChannelBlue extends BluePlatform {
         }
         Logger.log("b", "Device $id logging status: $isLogging");
 
-      default:
-        throw UnimplementedError("a method was called that does not exist: ${call.method}");
+        default:
+          throw UnimplementedError("a method was called that does not exist: ${call.method}");
+      }
+    } catch (e) {
+      Logger.log("b error", "Method handler error for ${call.method}: $e");
     }
   }
 
   void liveStreamPacketTimeout(LFLiner device) {
-    checkMode(device.id);
+    try {
+      checkMode(device.id);
+    } catch (e) {
+      Logger.log("b error", "Live stream packet timeout error for device ${device.name}: $e");
+    }
   }
 }
