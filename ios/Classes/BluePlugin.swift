@@ -109,28 +109,35 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
             result(true)
             
         case "sendCommand":
-            // TODO => this needs a refactor to cover devices that are no longer available
-            // or have suddenly disconnected (without crashing the app!)
-            let args = call.arguments as! Dictionary<String, Any?>
-            let rawFlutterData = args["command"] as! FlutterStandardTypedData
-            
-            let data = Data(rawFlutterData.data)
-            
+            let args = call.arguments as! [String: Any]
             let deviceId = args["device"] as! String
-            //let device = discoveredDevices.first(where: {$0.identifier.uuidString == deviceId})!
-            let device = connectedDevices.first(where: {$0.id == deviceId})!
+            let command = args["command"] as! FlutterStandardTypedData
             
-            flutterMessage("writing command: ...\(device.id.suffix(4)) => \(data.map { String(format: "[%02x]", $0)}.joined())", device.id)
+            sendCommand(deviceId: deviceId, command: command.data)
+            result(true)
             
-            // this is where timeout timer should be started...
-            device.writeResult = result
-            writeCommand(liner: device, command: data)
-            
-            // TODO => this 'discoveredDevices' vs 'connectedDevices' feels a little loose logically, clean it up
+        case "getMacAddress":
+            let deviceId = call.arguments as! String
+            let macAddress = getMacAddress(deviceId: deviceId)
+            result(macAddress)
             
         default:
             result(FlutterMethodNotImplemented)
         }
+    }
+    
+    func getMacAddress(deviceId: String) -> String? {
+        // Find the connected device
+        let device = connectedDevices.first(where: {$0.id == deviceId})
+        
+        if let peripheral = device?.peripheral {
+            // On iOS, we can't get the actual MAC address due to privacy restrictions
+            // Instead, we return the device identifier UUID which is unique per device per app
+            // For DFU purposes, this UUID can be used as a unique identifier
+            return peripheral.identifier.uuidString
+        }
+        
+        return nil
     }
     
     public func centralManagerDidUpdateState(_ central: CBCentralManager) {
@@ -169,7 +176,10 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
         connectedDevices.append(liner)
         
         peripheral.delegate = liner
-        peripheral.discoverServices([uuids!.service])
+        
+        // Check if this is a DFU device by looking for DFU service
+        // If it has DFU service, handle it as DFU device, otherwise as LAAF device
+        peripheral.discoverServices([uuids!.service, uuids!.dfuTarget])
     }
     
     //TODO => these should check for errors (even though I've never had one)

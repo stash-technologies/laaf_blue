@@ -384,6 +384,19 @@ class LFLiner {
     }
   }
 
+  /// Get the MAC address (or unique identifier) for this device.
+  /// On iOS, this returns the device's UUID identifier due to privacy restrictions.
+  /// On Android, this may return the actual MAC address.
+  /// The device must be connected for this to work.
+  Future<String?> getMacAddress() async {
+    try {
+      return await blue.getMacAddress(this);
+    } catch (e) {
+      message.update('Get MAC address error: $e');
+      return null;
+    }
+  }
+
   // New LAAF protocol file management methods
 
   /// Set the device time to synchronize with phone. Must be called before logging.

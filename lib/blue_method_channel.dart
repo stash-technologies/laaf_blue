@@ -362,6 +362,19 @@ class MethodChannelBlue extends BluePlatform {
     }
   }
 
+  @override
+  Future<String?> getMacAddress(String deviceId) async {
+    try {
+      Logger.log("b", "getting MAC address for device $deviceId");
+
+      final result = await methodChannel.invokeMethod<String?>('getMacAddress', deviceId);
+      return result;
+    } catch (e) {
+      Logger.log("b error", "Get MAC address error for device $deviceId: $e");
+      return null;
+    }
+  }
+
   LFLiner getDevice(String id) {
     try {
       return blueState.activeDevices.value().firstWhere((l) => l.id == id);

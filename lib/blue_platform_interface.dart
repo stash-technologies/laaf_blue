@@ -100,6 +100,10 @@ abstract class BluePlatform extends PlatformInterface {
     throw UnimplementedError('enterDFUMode() has not been implemented');
   }
 
+  Future<String?> getMacAddress(String deviceId) {
+    throw UnimplementedError('getMacAddress() has not been implemented');
+  }
+
   BlueState getBlueState() {
     return _instance.getBlueState();
   }

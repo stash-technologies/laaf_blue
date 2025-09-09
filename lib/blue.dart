@@ -256,6 +256,18 @@ class Blue {
     return scan(duration, onlyDfuDevices: true);
   }
 
+  /// Get the MAC address (or unique identifier) for a connected device.
+  /// On iOS, this returns the device's UUID identifier due to privacy restrictions.
+  /// On Android, this may return the actual MAC address.
+  Future<String?> getMacAddress(LFLiner device) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      final result = await BluePlatform.instance.getMacAddress(device.id);
+      return result;
+    } else {
+      return null;
+    }
+  }
+
   /// Removes the 'device' from 'blueState.activeDevices' Observable.
   bool remove(LFLiner device) {
     Logger.log("b", "removing device $device.id");
