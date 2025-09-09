@@ -237,6 +237,18 @@ class Blue {
     }
   }
 
+  /// Sends the DFU mode command (0x52) to the device. This will put the device
+  /// into Device Firmware Update mode for firmware updates. The device will
+  /// disconnect after entering DFU mode.
+  Future<bool> enterDFUMode(LFLiner device) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      final result = await BluePlatform.instance.enterDFUMode(device.id);
+      return nonNullResult(result);
+    } else {
+      return Future<bool>(() => false);
+    }
+  }
+
   /// Removes the 'device' from 'blueState.activeDevices' Observable.
   bool remove(LFLiner device) {
     Logger.log("b", "removing device $device.id");

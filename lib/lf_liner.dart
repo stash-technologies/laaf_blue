@@ -373,6 +373,17 @@ class LFLiner {
     }
   }
 
+  /// Enter DFU mode. Sends 0x52 command to put the device into Device Firmware Update mode.
+  /// The device will disconnect after entering DFU mode and will be available for firmware updates.
+  Future<bool> enterDFUMode() async {
+    try {
+      return await blue.enterDFUMode(this);
+    } catch (e) {
+      message.update('Enter DFU mode error: $e');
+      return false;
+    }
+  }
+
   // New LAAF protocol file management methods
 
   /// Set the device time to synchronize with phone. Must be called before logging.

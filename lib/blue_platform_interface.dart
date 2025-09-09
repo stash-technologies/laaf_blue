@@ -96,6 +96,10 @@ abstract class BluePlatform extends PlatformInterface {
     throw UnimplementedError('getSummaryFile() has not been implemented');
   }
 
+  Future<bool?> enterDFUMode(String deviceId) {
+    throw UnimplementedError('enterDFUMode() has not been implemented');
+  }
+
   BlueState getBlueState() {
     return _instance.getBlueState();
   }

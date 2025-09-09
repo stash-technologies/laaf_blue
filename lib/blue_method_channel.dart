@@ -342,6 +342,21 @@ class MethodChannelBlue extends BluePlatform {
     }
   }
 
+  @override
+  Future<bool?> enterDFUMode(String deviceId) async {
+    try {
+      Logger.log("b", "entering DFU mode for device $deviceId");
+
+      // Create DFU mode command - sends 0x52 to command characteristic (00008811)
+      final command = Uint8List.fromList([0x52]); // DFU mode command ID
+
+      return await sendCommand(deviceId, command);
+    } catch (e) {
+      Logger.log("b error", "Enter DFU mode error for device $deviceId: $e");
+      return false;
+    }
+  }
+
   LFLiner getDevice(String id) {
     try {
       return blueState.activeDevices.value().firstWhere((l) => l.id == id);
