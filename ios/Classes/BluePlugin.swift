@@ -109,12 +109,24 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
             result(true)
             
         case "sendCommand":
-            let args = call.arguments as! [String: Any]
-            let deviceId = args["device"] as! String
-            let command = args["command"] as! FlutterStandardTypedData
+            // TODO => this needs a refactor to cover devices that are no longer available
+            // or have suddenly disconnected (without crashing the app!)
+            let args = call.arguments as! Dictionary<String, Any?>
+            let rawFlutterData = args["command"] as! FlutterStandardTypedData
             
-            sendCommand(deviceId: deviceId, command: command.data)
-            result(true)
+            let data = Data(rawFlutterData.data)
+            
+            let deviceId = args["device"] as! String
+            //let device = discoveredDevices.first(where: {$0.identifier.uuidString == deviceId})!
+            let device = connectedDevices.first(where: {$0.id == deviceId})!
+            
+            flutterMessage("writing command: ...\(device.id.suffix(4)) => \(data.map { String(format: "[%02x]", $0)}.joined())", device.id)
+            
+            // this is where timeout timer should be started...
+            device.writeResult = result
+            writeCommand(liner: device, command: data)
+            
+            // TODO => this 'discoveredDevices' vs 'connectedDevices' feels a little loose logically, clean it up
             
         case "getMacAddress":
             let deviceId = call.arguments as! String
