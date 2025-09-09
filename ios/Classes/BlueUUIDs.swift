@@ -18,4 +18,5 @@ struct BlueUUIDs {
     var data: CBUUID
     var mode: CBUUID
     var liveStream: CBUUID
+    var dfuTarget: CBUUID
 }

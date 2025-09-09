@@ -51,10 +51,11 @@ class Blue {
   /// Returns 'true' if the scan request was received by the platform.
   /// The devices found in the scan come back through the
   /// 'blueState.scannedDevices' Observable.
-  Future<bool> scan(int duration) async {
+  /// Set [onlyDfuDevices] to true to scan only for DFU target devices.
+  Future<bool> scan(int duration, {bool onlyDfuDevices = false}) async {
     if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
       if (!blueState.scanning.value()) {
-        final result = await BluePlatform.instance.scan(duration).timeout(
+        final result = await BluePlatform.instance.scan(duration, onlyDfuDevices: onlyDfuDevices).timeout(
             Duration(seconds: timeUntilTimeout + duration),
             onTimeout: timeoutFunction("blue.scan", "bluetooth"));
 
@@ -247,6 +248,12 @@ class Blue {
     } else {
       return Future<bool>(() => false);
     }
+  }
+
+  /// Convenience method to scan for DFU devices only.
+  /// This will scan for devices advertising the DFU target service UUID (0000fe59).
+  Future<bool> scanForDFUDevices(int duration) async {
+    return scan(duration, onlyDfuDevices: true);
   }
 
   /// Removes the 'device' from 'blueState.activeDevices' Observable.

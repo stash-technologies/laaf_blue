@@ -31,7 +31,7 @@ abstract class BluePlatform extends PlatformInterface {
     throw UnimplementedError('initializeBluetooth() has not been implemented');
   }
 
-  Future<bool?> scan(int duration) {
+  Future<bool?> scan(int duration, {bool onlyDfuDevices = false}) {
     throw UnimplementedError('scan() has not been implemented');
   }
 

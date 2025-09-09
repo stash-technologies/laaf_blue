@@ -45,7 +45,8 @@ class MethodChannelBlue extends BluePlatform {
         "00008811-0000-1000-8000-00805f9b34fb", // command char uuid
         "00008812-0000-1000-8000-00805f9b34fb", // data char uuid
         "00008813-0000-1000-8000-00805f9b34fb", // mode char uuid
-        "0000880E-0000-1000-8000-00805f9b34fb" // live stream data uuid
+        "0000880E-0000-1000-8000-00805f9b34fb", // live stream data uuid
+        "0000fe59-0000-1000-8000-00805f9b34fb"  // DFU target service uuid
       ];
       final result = await methodChannel.invokeMethod<bool>('initializeBluetooth', uuids);
 
@@ -57,9 +58,13 @@ class MethodChannelBlue extends BluePlatform {
   }
 
   @override
-  Future<bool?> scan(int duration) async {
+  Future<bool?> scan(int duration, {bool onlyDfuDevices = false}) async {
     try {
-      final scanResult = await methodChannel.invokeMethod<bool?>('scan', duration);
+      final scanArgs = {
+        'duration': duration,
+        'onlyDfuDevices': onlyDfuDevices
+      };
+      final scanResult = await methodChannel.invokeMethod<bool?>('scan', scanArgs);
 
       if (scanResult!) {
         Logger.log("b", "updating bluestate scanning status...");

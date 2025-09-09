@@ -36,7 +36,7 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
             let buuids = call.arguments as! Array<String>
 
             uuids = BlueUUIDs(service: CBUUID(string: buuids[0]), command: CBUUID(string: buuids[1]),
-                              data: CBUUID(string: buuids[2]), mode: CBUUID(string: buuids[3]),liveStream: CBUUID(string: buuids[4]))
+                              data: CBUUID(string: buuids[2]), mode: CBUUID(string: buuids[3]),liveStream: CBUUID(string: buuids[4]), dfuTarget: CBUUID(string: buuids[5]))
             
             centralManager = CBCentralManager(delegate:self, queue: nil, options: nil)
             
@@ -55,7 +55,18 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
                                                  arguments: self.discoveredDevices.map
                                                  { LFLiner(id: $0.identifier.uuidString, name: $0.name!).toHashmap() })
                 
-                centralManager.scanForPeripherals(withServices: [uuids!.service])
+                // Handle scan arguments - can be int (legacy) or dictionary (new)
+                var onlyDfuDevices = false
+                if let scanArgs = call.arguments as? [String: Any] {
+                    onlyDfuDevices = scanArgs["onlyDfuDevices"] as? Bool ?? false
+                }
+                
+                // Choose which service UUID to scan for
+                let serviceToScan = onlyDfuDevices ? uuids!.dfuTarget : uuids!.service
+                centralManager.scanForPeripherals(withServices: [serviceToScan])
+                
+                let scanType = onlyDfuDevices ? "DFU devices" : "LAAF devices"
+                flutterMessage("Scanning for \(scanType)")
                 result(true)
             }
         case "stopScan":
