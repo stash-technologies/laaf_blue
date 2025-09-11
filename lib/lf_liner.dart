@@ -217,6 +217,7 @@ class LFLiner {
   /// Parses a raw packet, and updates the appropriate packet observable.
   /// Used for live streaming data only.
   void parseAndUpdatePacket(Uint8List rawPacket) {
+    if (rawPacket.isEmpty) return;
     try {
       switch (rawPacket[0]) {
         case 0xD5:
