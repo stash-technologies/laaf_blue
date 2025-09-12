@@ -268,6 +268,18 @@ class Blue {
     }
   }
 
+  /// Get the firmware version from the Device Information Service.
+  /// Reads the Firmware Revision String characteristic (UUID: 0x2A26).
+  /// The device must be connected for this to work.
+  Future<String?> getFirmwareVersion(LFLiner device) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      final result = await BluePlatform.instance.getFirmwareVersion(device.id);
+      return result;
+    } else {
+      return null;
+    }
+  }
+
   /// Removes the 'device' from 'blueState.activeDevices' Observable.
   bool remove(LFLiner device) {
     Logger.log("b", "removing device $device.id");

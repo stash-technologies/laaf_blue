@@ -40,30 +40,51 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
     // to serve individual liners simultaneously
     public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         flutterMessage("services discovered")
-        peripheral.discoverCharacteristics([uuids!.command, uuids!.data, uuids!.mode, uuids!.liveStream], for: peripheral.services![0])
+        
+        // Discover characteristics for all services
+        for service in peripheral.services! {
+            if service.uuid == uuids!.service {
+                // LAAF service - discover main characteristics
+                peripheral.discoverCharacteristics([uuids!.command, uuids!.data, uuids!.mode, uuids!.liveStream], for: service)
+            } else if service.uuid == CBUUID(string: "180A") {
+                // Device Information Service - discover firmware revision characteristic
+                peripheral.discoverCharacteristics([CBUUID(string: "2A26")], for: service)
+            }
+        }
     }
     
     public func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
         flutterMessage("characteristics discovered")
         
-        for c in service.characteristics! {
-            switch (c.uuid) {
-            case uuids!.command:
-                commandChar = c
-            case uuids!.data:
-                dataChar = c
-            case uuids!.mode:
-                modeChar = c
-            case uuids!.liveStream:
-                liveStreamChar = c
-            default:
-                continue
+        if service.uuid == uuids!.service {
+            // Handle LAAF service characteristics
+            for c in service.characteristics! {
+                switch (c.uuid) {
+                case uuids!.command:
+                    commandChar = c
+                case uuids!.data:
+                    dataChar = c
+                case uuids!.mode:
+                    modeChar = c
+                case uuids!.liveStream:
+                    liveStreamChar = c
+                default:
+                    continue
+                }
+            }
+            // subscribing for notifications
+            peripheral.setNotifyValue(true, for: dataChar)
+            peripheral.setNotifyValue(true, for: modeChar)
+            peripheral.setNotifyValue(true, for: liveStreamChar)
+        } else if service.uuid == CBUUID(string: "180A") {
+            // Handle Device Information Service
+            for c in service.characteristics! {
+                if c.uuid == CBUUID(string: "2A26") {
+                    // Read firmware revision string automatically
+                    peripheral.readValue(for: c)
+                }
             }
         }
-        // subscribing for notifications
-        peripheral.setNotifyValue(true, for: dataChar)
-        peripheral.setNotifyValue(true, for: modeChar)
-        peripheral.setNotifyValue(true, for: liveStreamChar)
     }
     
     class BluetoothConnectionProgress {
@@ -118,6 +139,15 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
         
         if (characteristic == liveStreamChar) {
             BluePlugin.fChannel.invokeMethod("liveStreamPacket", arguments: ["id": peripheral.identifier.uuidString, "packet": characteristic.value!])
+        }
+        
+        // Handle firmware version read from Device Information Service
+        if (characteristic.uuid == CBUUID(string: "2A26")) {
+            if let firmwareData = characteristic.value,
+               let firmwareVersion = String(data: firmwareData, encoding: .utf8) {
+                flutterMessage("firmware version read: \(firmwareVersion)", peripheral.identifier.uuidString)
+                BluePlugin.fChannel.invokeMethod("firmwareVersionRead", arguments: ["id": peripheral.identifier.uuidString, "version": firmwareVersion])
+            }
         }
         
         // Handle new LAAF protocol file management responses

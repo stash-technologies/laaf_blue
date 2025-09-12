@@ -133,6 +133,11 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
             let macAddress = getMacAddress(deviceId: deviceId)
             result(macAddress)
             
+        case "getFirmwareVersion":
+            let deviceId = call.arguments as! String
+            let firmwareVersion = getFirmwareVersion(deviceId: deviceId)
+            result(firmwareVersion)
+            
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -143,10 +148,36 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
         let device = connectedDevices.first(where: {$0.id == deviceId})
         
         if let peripheral = device?.peripheral {
-            // On iOS, we can't get the actual MAC address due to privacy restrictions
-            // Instead, we return the device identifier UUID which is unique per device per app
-            // For DFU purposes, this UUID can be used as a unique identifier
+            // On iOS, return the UUID identifier (MAC address not accessible due to privacy)
             return peripheral.identifier.uuidString
+        }
+        
+        return nil
+    }
+    
+    func getFirmwareVersion(deviceId: String) -> String? {
+        // Find the connected device
+        let device = connectedDevices.first(where: {$0.id == deviceId})
+        
+        if let peripheral = device?.peripheral {
+            // Look for Device Information Service (0x180A)
+            if let services = peripheral.services {
+                for service in services {
+                    if service.uuid == CBUUID(string: "180A") {
+                        // Look for Firmware Revision String characteristic (0x2A26)
+                        if let characteristics = service.characteristics {
+                            for characteristic in characteristics {
+                                if characteristic.uuid == CBUUID(string: "2A26") {
+                                    // Read the characteristic value if available
+                                    if let value = characteristic.value {
+                                        return String(data: value, encoding: .utf8)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
         
         return nil

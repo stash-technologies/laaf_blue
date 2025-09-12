@@ -17,6 +17,7 @@ class LFLiner {
   final String id;
   final String name;
   Foot side = Foot.left;
+  String firmwareVersion = "";
 
   final Blue blue = Blue();
 
@@ -394,6 +395,23 @@ class LFLiner {
       return await blue.getMacAddress(this);
     } catch (e) {
       message.update('Get MAC address error: $e');
+      return null;
+    }
+  }
+
+  /// Get the firmware version from the Device Information Service.
+  /// Reads the Firmware Revision String characteristic (UUID: 0x2A26).
+  /// The device must be connected for this to work.
+  /// Updates the firmwareVersion property with the result.
+  Future<String?> getFirmwareVersion() async {
+    try {
+      final version = await blue.getFirmwareVersion(this);
+      if (version != null) {
+        firmwareVersion = version;
+      }
+      return version;
+    } catch (e) {
+      message.update('Get firmware version error: $e');
       return null;
     }
   }

@@ -366,11 +366,22 @@ class MethodChannelBlue extends BluePlatform {
   Future<String?> getMacAddress(String deviceId) async {
     try {
       Logger.log("b", "getting MAC address for device $deviceId");
-
       final result = await methodChannel.invokeMethod<String?>('getMacAddress', deviceId);
       return result;
     } catch (e) {
       Logger.log("b error", "Get MAC address error for device $deviceId: $e");
+      return null;
+    }
+  }
+
+  @override
+  Future<String?> getFirmwareVersion(String deviceId) async {
+    try {
+      Logger.log("b", "getting firmware version for device $deviceId");
+      final result = await methodChannel.invokeMethod<String?>('getFirmwareVersion', deviceId);
+      return result;
+    } catch (e) {
+      Logger.log("b error", "Get firmware version error for device $deviceId: $e");
       return null;
     }
   }
@@ -423,6 +434,17 @@ class MethodChannelBlue extends BluePlatform {
         blueState.stepDataCalculator.reset();
 
         checkMode(id);
+
+      case "firmwareVersionRead":
+        final args = call.arguments as Map;
+        final id = args["id"] as String;
+        final version = args["version"] as String;
+        
+        if (blueState.activeDevices.value().isNotEmpty) {
+          final device = getDevice(id);
+          device.firmwareVersion = version;
+          Logger.log("b", "firmware version updated for device $id: $version");
+        }
 
       case "updateDeviceState":
         final args = call.arguments as Map;
