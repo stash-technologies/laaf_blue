@@ -164,10 +164,10 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
             if let services = peripheral.services {
                 for service in services {
                     if service.uuid == CBUUID(string: "180A") {
-                        // Look for Firmware Revision String characteristic (0x2A26)
+                        // Look for Firmware Revision String characteristic (full UUID)
                         if let characteristics = service.characteristics {
                             for characteristic in characteristics {
-                                if characteristic.uuid == CBUUID(string: "2A26") {
+                                if characteristic.uuid == CBUUID(string: "00002A26-0000-1000-8000-00805F9B34FB") {
                                     // Read the characteristic value if available
                                     if let value = characteristic.value {
                                         return String(data: value, encoding: .utf8)
@@ -222,7 +222,8 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
         
         // Check if this is a DFU device by looking for DFU service
         // If it has DFU service, handle it as DFU device, otherwise as LAAF device
-        peripheral.discoverServices([uuids!.service, uuids!.dfuTarget])
+        // Also discover Device Information Service for firmware version
+        peripheral.discoverServices([uuids!.service, uuids!.dfuTarget, CBUUID(string: "180A")])
     }
     
     //TODO => these should check for errors (even though I've never had one)

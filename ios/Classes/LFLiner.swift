@@ -48,7 +48,7 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
                 peripheral.discoverCharacteristics([uuids!.command, uuids!.data, uuids!.mode, uuids!.liveStream], for: service)
             } else if service.uuid == CBUUID(string: "180A") {
                 // Device Information Service - discover firmware revision characteristic
-                peripheral.discoverCharacteristics([CBUUID(string: "2A26")], for: service)
+                peripheral.discoverCharacteristics([CBUUID(string: "00002A26-0000-1000-8000-00805F9B34FB")], for: service)
             }
         }
     }
@@ -79,7 +79,7 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
         } else if service.uuid == CBUUID(string: "180A") {
             // Handle Device Information Service
             for c in service.characteristics! {
-                if c.uuid == CBUUID(string: "2A26") {
+                if c.uuid == CBUUID(string: "00002A26-0000-1000-8000-00805F9B34FB") {
                     // Read firmware revision string automatically
                     peripheral.readValue(for: c)
                 }
@@ -142,7 +142,7 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
         }
         
         // Handle firmware version read from Device Information Service
-        if (characteristic.uuid == CBUUID(string: "2A26")) {
+        if (characteristic.uuid == CBUUID(string: "00002A26-0000-1000-8000-00805F9B34FB")) {
             if let firmwareData = characteristic.value,
                let firmwareVersion = String(data: firmwareData, encoding: .utf8) {
                 flutterMessage("firmware version read: \(firmwareVersion)", peripheral.identifier.uuidString)
