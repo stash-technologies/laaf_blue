@@ -14,7 +14,7 @@ class StepDataPacket {
         swingTime = _convertSubList(rawPacket, 17, 18),
         stepClearance = _convertSubList(rawPacket, 19, 19),
         totalNumberOfSteps = _convertSubList(rawPacket, 20, 21),
-        totalDistanceTraveled = _convertSubList(rawPacket, 22, 23);
+        totalDistanceTraveled = _convertSubListLittleEndian(rawPacket, 22, 23);
 
   static num _convertSubList(Uint8List list, int lower, int upper, {bool signed = false}) {
     ByteData data = list.sublist(lower, upper + 1).buffer.asByteData();
@@ -25,7 +25,32 @@ class StepDataPacket {
       case 0:
         result = data.getUint8(0);
       case 1:
-        // Fix: Use little-endian consistently to match lf_liner.dart parsing
+        result = data.getInt16(0);
+
+        if (!signed) {
+          result = result.toUnsigned(16);
+        }
+
+      default:
+        result = data.getInt32(0);
+
+        if (!signed) {
+          result = result.toUnsigned(32);
+        }
+    }
+
+    return result;
+  }
+
+  static num _convertSubListLittleEndian(Uint8List list, int lower, int upper, {bool signed = false}) {
+    ByteData data = list.sublist(lower, upper + 1).buffer.asByteData();
+
+    int result = 0;
+
+    switch (upper - lower) {
+      case 0:
+        result = data.getUint8(0);
+      case 1:
         if (signed) {
           result = data.getInt16(0, Endian.little);
         } else {
@@ -33,7 +58,6 @@ class StepDataPacket {
         }
 
       default:
-        // Fix: Use little-endian consistently to match lf_liner.dart parsing
         if (signed) {
           result = data.getInt32(0, Endian.little);
         } else {
