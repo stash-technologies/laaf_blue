@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:blue/logger.dart';
+
 /// Data from a step packet.
 class StepDataPacket {
   StepDataPacket(this.rawPacket)
@@ -55,6 +57,10 @@ class StepDataPacket {
           result = data.getInt16(0, Endian.little);
         } else {
           result = data.getUint16(0, Endian.little);
+        }
+        // Debug logging for distance field (bytes 22-23)
+        if (lower == 22) {
+          Logger.log('DEBUG: Distance bytes [${list[22]}, ${list[23]}] -> little-endian: $result');
         }
 
       default:
@@ -120,32 +126,34 @@ class StepDataPacket {
   }
 
   static StepDataPacket test() {
-    return StepDataPacket(Uint8List.fromList([
-      0xD5,
-      0x00,
-      0x00,
-      0x04,
-      0xB0,
-      0x02,
-      0xD3,
-      0xFE,
-      0x4B,
-      0x65,
-      0x07,
-      0x9B,
-      0x02,
-      0x4C,
-      0x39,
-      0x00,
-      0x67,
-      0x01,
-      0xE5,
-      0x06,
-      0x01,
-      0xA4,
-      0x02,
-      0x58
-    ]));
+    return StepDataPacket(
+      Uint8List.fromList([
+        0xD5,
+        0x00,
+        0x00,
+        0x04,
+        0xB0,
+        0x02,
+        0xD3,
+        0xFE,
+        0x4B,
+        0x65,
+        0x07,
+        0x9B,
+        0x02,
+        0x4C,
+        0x39,
+        0x00,
+        0x67,
+        0x01,
+        0xE5,
+        0x06,
+        0x01,
+        0xA4,
+        0x02,
+        0x58,
+      ]),
+    );
   }
 
   Map<String, dynamic> toJson() {
@@ -161,7 +169,7 @@ class StepDataPacket {
       "swingTime": swingTime,
       "stepClearance": stepClearance,
       "totalNumberOfSteps": totalNumberOfSteps,
-      "totalDistanceTraveled": totalDistanceTraveled
+      "totalDistanceTraveled": totalDistanceTraveled,
     };
   }
 }
