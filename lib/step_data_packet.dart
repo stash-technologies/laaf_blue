@@ -16,10 +16,7 @@ class StepDataPacket {
         totalNumberOfSteps = _convertSubList(rawPacket, 20, 21),
         totalDistanceTraveled = _convertSubList(rawPacket, 22, 23);
 
-
-
-  static num _convertSubList(Uint8List list, int lower, int upper,
-      {bool signed = false}) {
+  static num _convertSubList(Uint8List list, int lower, int upper, {bool signed = false}) {
     ByteData data = list.sublist(lower, upper + 1).buffer.asByteData();
 
     int result = 0;
@@ -28,17 +25,19 @@ class StepDataPacket {
       case 0:
         result = data.getUint8(0);
       case 1:
-        result = data.getInt16(0);
-
-        if (!signed) {
-          result = result.toUnsigned(16);
+        // Fix: Use little-endian consistently to match lf_liner.dart parsing
+        if (signed) {
+          result = data.getInt16(0, Endian.little);
+        } else {
+          result = data.getUint16(0, Endian.little);
         }
 
       default:
-        result = data.getInt32(0);
-
-        if (!signed) {
-          result = result.toUnsigned(32);
+        // Fix: Use little-endian consistently to match lf_liner.dart parsing
+        if (signed) {
+          result = data.getInt32(0, Endian.little);
+        } else {
+          result = data.getUint32(0, Endian.little);
         }
     }
 
@@ -93,32 +92,7 @@ class StepDataPacket {
   final Uint8List rawPacket;
 
   static StepDataPacket empty() {
-    return StepDataPacket(Uint8List.fromList([
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ]));
+    return StepDataPacket(Uint8List.fromList([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
   }
 
   static StepDataPacket test() {
