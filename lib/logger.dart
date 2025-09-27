@@ -3,7 +3,7 @@ import 'dart:developer' as dev;
 /// 'log' function.  It is sent to 'print' by default.
 class Logger {
   /// If this is false, no logs will be processed.
-  static bool shouldLog = false;
+  static bool shouldLog = true;
 
   static Function log = (tag, str) {
     // the default method is to 'print()'.

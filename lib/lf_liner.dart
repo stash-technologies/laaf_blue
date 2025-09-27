@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:blue/fsr_packet.dart';
-import 'package:blue/step_data_packet.dart';
-import 'package:blue/file_metadata.dart';
 import 'package:blue/data_type_flags.dart';
+import 'package:blue/file_metadata.dart';
+import 'package:blue/fsr_packet.dart';
+import 'package:blue/logger.dart';
+import 'package:blue/step_data_packet.dart';
 
 import 'blue.dart';
 import 'device_state.dart';
@@ -155,7 +156,7 @@ class LFLiner {
       return false;
     }
   }
-  
+
   /// Start live streming step and fsr data from this device. All packet's will
   /// appear in their raw form in 'liveStreamPacket', or their parsed forms
   /// in the 'fsrPacket', or 'stepPacket' observables.  Returns 'true' if the
@@ -222,6 +223,7 @@ class LFLiner {
     try {
       switch (rawPacket[0]) {
         case 0xD5:
+          Logger.log('LIVE_STREAM DEBUG', 'Using StepDataPacket for parsing');
           stepPacket.update(StepDataPacket(rawPacket));
           break;
         case 0xE0:
@@ -240,60 +242,62 @@ class LFLiner {
       List<Map<String, dynamic>> parsedPackets = [];
       int offset = 0;
 
-      print('File data length: ${fileData.length}');
-      print('First 20 bytes: ${fileData.take(20).toList()}');
+      Logger.log('LF_LINER DEBUG', 'File data length: ${fileData.length}');
+      Logger.log('LF_LINER DEBUG', 'First 20 bytes: ${fileData.take(20).toList()}');
 
       while (offset < fileData.length) {
         if (offset >= fileData.length) break;
 
         int packetId = fileData[offset];
-        print('Offset $offset: Found packet ID 0x${packetId.toRadixString(16).padLeft(2, '0')} ($packetId)');
+        Logger.log('LF_LINER DEBUG',
+            'Offset $offset: Found packet ID 0x${packetId.toRadixString(16).padLeft(2, '0')} ($packetId)');
 
         Map<String, dynamic>? packet;
 
         switch (packetId) {
           case 0xD5: // 213
             if (offset + 24 <= fileData.length) {
-              print('Parsing step data packet at offset $offset');
+              Logger.log('LF_LINER DEBUG', 'Parsing step data packet at offset $offset');
               packet = parseRawStepDataPacket(fileData.sublist(offset, offset + 24));
               offset += 24;
             } else {
-              print('Incomplete step data packet at offset $offset');
+              Logger.log('LF_LINER DEBUG', 'Incomplete step data packet at offset $offset');
               offset = fileData.length;
             }
             break;
           case 0xE0: // 224
             if (offset + 21 <= fileData.length) {
-              print('Parsing FSR data packet at offset $offset');
+              Logger.log('LF_LINER DEBUG', 'Parsing FSR data packet at offset $offset');
               packet = parseRawFSRDataPacket(fileData.sublist(offset, offset + 21));
               offset += 21;
             } else {
-              print('Incomplete FSR data packet at offset $offset');
+              Logger.log('LF_LINER DEBUG', 'Incomplete FSR data packet at offset $offset');
               offset = fileData.length;
             }
             break;
           case 0xD0: // 208 - Raw IMU (skip as requested)
             if (offset + 19 <= fileData.length) {
-              print('Skipping raw IMU packet at offset $offset');
+              Logger.log('LF_LINER DEBUG', 'Skipping raw IMU packet at offset $offset');
               offset += 19;
             } else {
-              print('Incomplete raw IMU packet at offset $offset');
+              Logger.log('LF_LINER DEBUG', 'Incomplete raw IMU packet at offset $offset');
               offset = fileData.length;
             }
             break;
           default:
-            print('Unknown packet ID 0x${packetId.toRadixString(16)} at offset $offset, skipping');
+            Logger.log(
+                'LF_LINER DEBUG', 'Unknown packet ID 0x${packetId.toRadixString(16)} at offset $offset, skipping');
             offset++;
             break;
         }
 
         if (packet != null) {
           parsedPackets.add(packet);
-          print('Successfully parsed packet: ${packet['packetType']}');
+          Logger.log('LF_LINER DEBUG', 'Successfully parsed packet: ${packet['packetType']}');
         }
       }
 
-      print('Total packets parsed: ${parsedPackets.length}');
+      Logger.log('LF_LINER DEBUG', 'Total packets parsed: ${parsedPackets.length}');
       return parsedPackets;
     } catch (e) {
       message.update('Parse file data error: $e');
@@ -325,7 +329,12 @@ class LFLiner {
         'swingTime': data.getUint16(17, Endian.little), // ms
         'stepClearance': packet[19], // mm
         'totalSteps': data.getUint16(20, Endian.little), // steps
-        'totalDistance': data.getUint16(22, Endian.little), // m
+        'totalDistance': (() {
+          final distance = data.getUint16(22, Endian.little);
+          Logger.log('LF_LINER DEBUG',
+              'LF_LINER DEBUG: Distance bytes [${packet[22]}, ${packet[23]}] -> little-endian: $distance');
+          return distance;
+        })(), // m
       };
     } catch (e) {
       message.update('Parse step data packet error: $e');

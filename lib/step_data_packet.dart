@@ -60,7 +60,7 @@ class StepDataPacket {
         }
         // Debug logging for distance field (bytes 22-23)
         if (lower == 22) {
-          Logger.log('Distance Debug', 'Distance bytes [${list[22]}, ${list[23]}] -> little-endian: $result');
+          Logger.log('STEP_DATA_PACKET DEBUG', 'Distance bytes [${list[22]}, ${list[23]}] -> little-endian: $result');
         }
 
       default:
