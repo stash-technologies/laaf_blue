@@ -330,9 +330,9 @@ class LFLiner {
         'stepClearance': packet[19], // mm
         'totalSteps': data.getUint16(20, Endian.little), // steps
         'totalDistance': (() {
-          final distance = data.getUint16(22, Endian.little);
+          final distance = data.getUint16(22, Endian.big);
           Logger.log('LF_LINER DEBUG',
-              'LF_LINER DEBUG: Distance bytes [${packet[22]}, ${packet[23]}] -> little-endian: $distance');
+              'Distance bytes [${packet[22]}, ${packet[23]}] -> big-endian: $distance');
           return distance;
         })(), // m
       };
