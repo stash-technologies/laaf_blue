@@ -329,12 +329,7 @@ class LFLiner {
         'swingTime': data.getUint16(17, Endian.little), // ms
         'stepClearance': packet[19], // mm
         'totalSteps': data.getUint16(20, Endian.little), // steps
-        'totalDistance': (() {
-          final distance = data.getUint16(22, Endian.big);
-          Logger.log('LF_LINER DEBUG',
-              'Distance bytes [${packet[22]}, ${packet[23]}] -> big-endian: $distance');
-          return distance;
-        })(), // m
+        'totalDistance': data.getUint16(22, Endian.little), // m
       };
     } catch (e) {
       message.update('Parse step data packet error: $e');
