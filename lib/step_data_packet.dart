@@ -19,7 +19,15 @@ class StepDataPacket {
         totalDistanceTraveled = (() {
           final rawDistance = _convertSubListLittleEndian(rawPacket, 22, 23);
           // Filter out invalid values (65535 = 0xFFFF indicates error/uninitialized)
-          return rawDistance >= 65535 ? 0 : rawDistance;
+          if (rawDistance >= 65535) {
+            // Calculate distance from steps and stride length if insole distance is invalid
+            final steps = _convertSubList(rawPacket, 20, 21);
+            final stride = _convertSubList(rawPacket, 14, 14) / 10;
+            final calculatedDistance = steps * stride;
+            Logger.log('STEP_DATA_PACKET DEBUG', 'Using calculated distance: $calculatedDistance (Steps: $steps × Stride: $stride)');
+            return calculatedDistance;
+          }
+          return rawDistance;
         })() {
     // Debug logging for step count and distance correlation
     Logger.log('STEP_DATA_PACKET DEBUG', 'Steps: $totalNumberOfSteps, Distance: $totalDistanceTraveled');
