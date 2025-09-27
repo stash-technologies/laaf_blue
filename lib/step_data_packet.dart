@@ -1,7 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:blue/logger.dart';
-
 /// Data from a step packet.
 class StepDataPacket {
   StepDataPacket(this.rawPacket)
@@ -32,12 +30,6 @@ class StepDataPacket {
         if (!signed) {
           result = result.toUnsigned(16);
         }
-        
-        // Debug logging for distance field (bytes 22-23) - now using big-endian
-        if (lower == 22) {
-          Logger.log('STEP_DATA_PACKET DEBUG', 'Distance bytes [${list[22]}, ${list[23]}] -> big-endian: $result');
-        }
-
       default:
         result = data.getInt32(0);
 
@@ -48,7 +40,6 @@ class StepDataPacket {
 
     return result;
   }
-
 
   static num toTwoDecimal(num input) {
     return num.parse(input.toStringAsFixed(2));

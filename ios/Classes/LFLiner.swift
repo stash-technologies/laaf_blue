@@ -208,30 +208,18 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
                 ])
                 
             case 0x01, 0x02: // Response to start/stop logging commands
-                let isLogging = commandId == 0x01
-                let dataTypes = data.count > 1 ? Int(data[1]) : 0
-                
-                // Validate data types - only accept valid LAAF protocol flags
-                let validDataTypes = [0, 1, 2, 3, 4, 5, 6, 7] // Valid combinations of Step(1), IMU(2), FSR(4)
-                
-                if isLogging && !validDataTypes.contains(dataTypes) {
-                    flutterMessage("Invalid data type flags: \(dataTypes) - ignoring spurious logging command", peripheral.identifier.uuidString)
-                    break
+                // Only process short command responses, not sensor data
+                if data.count <= 3 {
+                    let isLogging = commandId == 0x01
+                    let dataTypes = data.count > 1 ? Int(data[1]) : 0
+                    
+                    flutterMessage("Logging status update: \(isLogging ? "started" : "stopped") with data types: \(dataTypes)", peripheral.identifier.uuidString)
+                    BluePlugin.fChannel.invokeMethod("loggingStatusUpdate", arguments: [
+                        "id": peripheral.identifier.uuidString,
+                        "isLogging": isLogging,
+                        "dataTypes": dataTypes
+                    ])
                 }
-                
-                // Only process if this looks like a legitimate command response
-                // Real logging responses should be short (2-3 bytes max)
-                if data.count > 3 {
-                    flutterMessage("Logging response too long (\(data.count) bytes) - likely sensor data, ignoring", peripheral.identifier.uuidString)
-                    break
-                }
-                
-                flutterMessage("Logging status update: \(isLogging ? "started" : "stopped") with data types: \(dataTypes)", peripheral.identifier.uuidString)
-                BluePlugin.fChannel.invokeMethod("loggingStatusUpdate", arguments: [
-                    "id": peripheral.identifier.uuidString,
-                    "isLogging": isLogging,
-                    "dataTypes": dataTypes
-                ])
                 
             default:
                 // Only log if it's a short packet that might be a command response
