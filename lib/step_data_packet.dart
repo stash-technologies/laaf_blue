@@ -16,7 +16,14 @@ class StepDataPacket {
         swingTime = _convertSubList(rawPacket, 17, 18),
         stepClearance = _convertSubList(rawPacket, 19, 19),
         totalNumberOfSteps = _convertSubList(rawPacket, 20, 21),
-        totalDistanceTraveled = _convertSubListLittleEndian(rawPacket, 22, 23);
+        totalDistanceTraveled = (() {
+          final rawDistance = _convertSubListLittleEndian(rawPacket, 22, 23);
+          // Filter out invalid values (65535 = 0xFFFF indicates error/uninitialized)
+          return rawDistance >= 65535 ? 0 : rawDistance;
+        })() {
+    // Debug logging for step count and distance correlation
+    Logger.log('STEP_DATA_PACKET DEBUG', 'Steps: $totalNumberOfSteps, Distance: $totalDistanceTraveled');
+  }
 
   static num _convertSubList(Uint8List list, int lower, int upper, {bool signed = false}) {
     ByteData data = list.sublist(lower, upper + 1).buffer.asByteData();
@@ -65,7 +72,11 @@ class StepDataPacket {
           result = data.getUint32(0, Endian.little);
         }
     }
-    Logger.log('STEP_DATA_PACKET DEBUG', 'Distance bytes [${list[22]}, ${list[23]}] -> little-endian: $result');
+    
+    // Only log for distance field (bytes 22-23)
+    if (lower == 22 && upper == 23) {
+      Logger.log('STEP_DATA_PACKET DEBUG', 'Distance bytes [${list[22]}, ${list[23]}] -> little-endian: $result');
+    }
 
     return result;
   }
