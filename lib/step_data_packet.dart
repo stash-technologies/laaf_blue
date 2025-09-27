@@ -1,7 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:blue/logger.dart';
-
 /// Data from a step packet.
 class StepDataPacket {
   StepDataPacket(this.rawPacket)
@@ -24,14 +22,10 @@ class StepDataPacket {
             final steps = _convertSubList(rawPacket, 20, 21);
             final stride = _convertSubList(rawPacket, 14, 14) / 10;
             final calculatedDistance = steps * stride;
-            Logger.log('STEP_DATA_PACKET DEBUG', 'Using calculated distance: $calculatedDistance (Steps: $steps × Stride: $stride)');
             return calculatedDistance;
           }
           return rawDistance;
-        })() {
-    // Debug logging for step count and distance correlation
-    Logger.log('STEP_DATA_PACKET DEBUG', 'Steps: $totalNumberOfSteps, Distance: $totalDistanceTraveled');
-  }
+        })();
 
   static num _convertSubList(Uint8List list, int lower, int upper, {bool signed = false}) {
     ByteData data = list.sublist(lower, upper + 1).buffer.asByteData();
@@ -81,10 +75,6 @@ class StepDataPacket {
         }
     }
     
-    // Only log for distance field (bytes 22-23)
-    if (lower == 22 && upper == 23) {
-      Logger.log('STEP_DATA_PACKET DEBUG', 'Distance bytes [${list[22]}, ${list[23]}] -> little-endian: $result');
-    }
 
     return result;
   }
