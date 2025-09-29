@@ -14,18 +14,7 @@ class StepDataPacket {
         swingTime = _convertSubList(rawPacket, 17, 18),
         stepClearance = _convertSubList(rawPacket, 19, 19),
         totalNumberOfSteps = _convertSubList(rawPacket, 20, 21),
-        totalDistanceTraveled = (() {
-          final rawDistance = _convertSubListLittleEndian(rawPacket, 22, 23);
-          // Filter out invalid values (65535 = 0xFFFF indicates error/uninitialized)
-          if (rawDistance >= 65535) {
-            // Calculate distance from steps and stride length if insole distance is invalid
-            final steps = _convertSubList(rawPacket, 20, 21);
-            final stride = _convertSubList(rawPacket, 14, 14) / 10;
-            final calculatedDistance = steps * stride;
-            return calculatedDistance;
-          }
-          return rawDistance;
-        })();
+        totalDistanceTraveled = _convertSubList(rawPacket, 22, 23);
 
   static num _convertSubList(Uint8List list, int lower, int upper, {bool signed = false}) {
     ByteData data = list.sublist(lower, upper + 1).buffer.asByteData();
@@ -48,33 +37,6 @@ class StepDataPacket {
           result = result.toUnsigned(32);
         }
     }
-
-    return result;
-  }
-
-  static num _convertSubListLittleEndian(Uint8List list, int lower, int upper, {bool signed = false}) {
-    ByteData data = list.sublist(lower, upper + 1).buffer.asByteData();
-
-    int result = 0;
-
-    switch (upper - lower) {
-      case 0:
-        result = data.getUint8(0);
-      case 1:
-        if (signed) {
-          result = data.getInt16(0, Endian.little);
-        } else {
-          result = data.getUint16(0, Endian.little);
-        }
-
-      default:
-        if (signed) {
-          result = data.getInt32(0, Endian.little);
-        } else {
-          result = data.getUint32(0, Endian.little);
-        }
-    }
-    
 
     return result;
   }
