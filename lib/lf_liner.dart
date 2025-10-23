@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:blue/data_type_flags.dart';
 import 'package:blue/file_metadata.dart';
 import 'package:blue/fsr_packet.dart';
+import 'package:blue/imu_packet.dart';
 import 'package:blue/logger.dart';
 import 'package:blue/step_data_packet.dart';
 
@@ -33,6 +34,9 @@ class LFLiner {
 
   /// The last parsed step data packet
   Observable<StepDataPacket> stepPacket = Observable(StepDataPacket.empty());
+
+  /// The last parsed IMU packet
+  Observable<IMUPacket> imuPacket = Observable(IMUPacket.empty());
 
   /// Messages received from other parts of the library that are
   /// relevant to this particular device (mostly for bluetooth logging /
@@ -67,6 +71,7 @@ class LFLiner {
     fileData.name = "file_data ($id)";
     summaryFile.name = "summary_file ($id)";
     loggingDataTypes.name = "logging_types ($id)";
+    imuPacket.name = "imu_packet ($id)";
 
     bool isRight = name.contains('R');
     if (isRight) {
@@ -229,6 +234,10 @@ class LFLiner {
         case 0xE0:
           fsrPacket.update(FSRPacket(rawPacket));
           break;
+        case 0xD0:
+          Logger.log('LIVE_STREAM DEBUG', 'Using IMUPacket for parsing');
+          imuPacket.update(IMUPacket(rawPacket));
+          break;
       }
     } catch (e) {
       message.update('Parse packet error: $e');
@@ -275,12 +284,13 @@ class LFLiner {
               offset = fileData.length;
             }
             break;
-          case 0xD0: // 208 - Raw IMU (skip as requested)
+          case 0xD0: // 208 - Raw IMU
             if (offset + 19 <= fileData.length) {
-              Logger.log('LF_LINER DEBUG', 'Skipping raw IMU packet at offset $offset');
+              Logger.log('LF_LINER DEBUG', 'Parsing IMU data packet at offset $offset');
+              packet = parseRawIMUDataPacket(fileData.sublist(offset, offset + 19));
               offset += 19;
             } else {
-              Logger.log('LF_LINER DEBUG', 'Incomplete raw IMU packet at offset $offset');
+              Logger.log('LF_LINER DEBUG', 'Incomplete IMU data packet at offset $offset');
               offset = fileData.length;
             }
             break;
@@ -363,6 +373,37 @@ class LFLiner {
     } catch (e) {
       message.update('Parse FSR data packet error: $e');
       return {'packetType': 'fsrData', 'error': e.toString()};
+    }
+  }
+
+  /// Parses raw IMU data packet from file (19 bytes with Unix timestamp)
+  Map<String, dynamic> parseRawIMUDataPacket(Uint8List packet) {
+    try {
+      if (packet.length != 19 || packet[0] != 0xD0) {
+        throw ArgumentError('Invalid IMU data packet');
+      }
+
+      // Parse using little-endian format
+      final data = ByteData.sublistView(packet);
+
+      // Scale factor: 16,384 AD/g @ 2g
+      const double scaleFactor = 16384.0;
+
+      return {
+        'packetType': 'imuData',
+        'packetId': packet[0],
+        'timestampSeconds': data.getUint32(1, Endian.little), // Unix timestamp seconds
+        'timestampMilliseconds': data.getUint16(5, Endian.little), // milliseconds
+        'accX': data.getInt16(7, Endian.little) / scaleFactor, // g units
+        'accY': data.getInt16(9, Endian.little) / scaleFactor, // g units
+        'accZ': data.getInt16(11, Endian.little) / scaleFactor, // g units
+        'gyroX': data.getInt16(13, Endian.little) / scaleFactor, // deg/s (using same scale per docs)
+        'gyroY': data.getInt16(15, Endian.little) / scaleFactor, // deg/s
+        'gyroZ': data.getInt16(17, Endian.little) / scaleFactor, // deg/s
+      };
+    } catch (e) {
+      message.update('Parse IMU data packet error: $e');
+      return {'packetType': 'imuData', 'error': e.toString()};
     }
   }
 
