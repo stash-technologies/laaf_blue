@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:blue/logger.dart';
+
 /// The IMU packet containing accelerometer and gyroscope data.
 /// Supports two formats:
 /// - File format: 19 bytes (IMU only)
@@ -14,7 +16,11 @@ class IMUPacket {
         gyroX = _convertRawToDegPerSec(rawPacket.sublist(13, 15)),
         gyroY = _convertRawToDegPerSec(rawPacket.sublist(15, 17)),
         gyroZ = _convertRawToDegPerSec(rawPacket.sublist(17, 19)),
-        fsrs = rawPacket.length >= 33 ? _parseFSRData(rawPacket.sublist(19, 33)) : [];
+        fsrs = rawPacket.length >= 33 ? _parseFSRData(rawPacket.sublist(19, 33)) : [] {
+    // Debug logging to see raw packet
+    Logger.log('IMU_PACKET_DEBUG', 'Packet length = ${rawPacket.length}');
+    Logger.log('IMU_PACKET_DEBUG', 'First 20 bytes = ${rawPacket.take(20).toList()}');
+  }
 
   final Uint8List rawPacket;
 
@@ -146,6 +152,6 @@ class IMUPacket {
     if (hasFSRData()) {
       base += ', fsrs: $fsrs';
     }
-    return base + ')';
+    return '$base)';
   }
 }
