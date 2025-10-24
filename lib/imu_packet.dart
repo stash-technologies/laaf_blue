@@ -1,8 +1,10 @@
 import 'dart:typed_data';
 
 /// The IMU packet containing accelerometer and gyroscope data.
-/// Packet format: 19 bytes total, Little-Endian
-/// Raw IMU data with Unix timestamp for offline logging validation.
+/// Supports two formats:
+/// - File format: 19 bytes (IMU only)
+/// - Live streaming format: 33 bytes (IMU + FSR data)
+/// All data is Little-Endian.
 class IMUPacket {
   IMUPacket(this.rawPacket)
       : timestamp = _getTimestamp(rawPacket.sublist(1, 7)),
@@ -11,7 +13,8 @@ class IMUPacket {
         accZ = _convertRawToG(rawPacket.sublist(11, 13)),
         gyroX = _convertRawToDegPerSec(rawPacket.sublist(13, 15)),
         gyroY = _convertRawToDegPerSec(rawPacket.sublist(15, 17)),
-        gyroZ = _convertRawToDegPerSec(rawPacket.sublist(17, 19));
+        gyroZ = _convertRawToDegPerSec(rawPacket.sublist(17, 19)),
+        fsrs = rawPacket.length >= 33 ? _parseFSRData(rawPacket.sublist(19, 33)) : [];
 
   final Uint8List rawPacket;
 
@@ -35,6 +38,10 @@ class IMUPacket {
 
   /// Gyroscope Z-axis in degrees/second
   final num gyroZ;
+
+  /// FSR sensor values (only available in 33-byte live streaming packets)
+  /// Empty list for 19-byte file packets
+  final List<num> fsrs;
 
   /// Parses timestamp from bytes 1-6 (seconds + milliseconds)
   static num _getTimestamp(Uint8List timestampBytes) {
@@ -71,9 +78,27 @@ class IMUPacket {
     return num.parse((rawValue / 16384.0).toStringAsFixed(6));
   }
 
-  /// Creates an empty IMU packet for initialization
+  /// Parses FSR data from live streaming packet (bytes 19-32)
+  /// Returns 7 FSR values in raw A/D units
+  static List<num> _parseFSRData(Uint8List fsrBytes) {
+    List<num> fsrs = [];
+    final data = ByteData.sublistView(fsrBytes);
+    
+    for (int i = 0; i < 14; i += 2) {
+      fsrs.add(data.getInt16(i, Endian.little));
+    }
+    
+    return fsrs;
+  }
+
+  /// Creates an empty IMU packet for initialization (19-byte file format)
   static IMUPacket empty() {
     return IMUPacket(Uint8List.fromList([0xD0, ...List.filled(18, 0)]));
+  }
+
+  /// Creates an empty IMU packet for live streaming (33-byte format with FSR)
+  static IMUPacket emptyLiveStream() {
+    return IMUPacket(Uint8List.fromList([0xD0, ...List.filled(32, 0)]));
   }
 
   /// Creates a test IMU packet with sample data
@@ -91,9 +116,14 @@ class IMUPacket {
     ]));
   }
 
+  /// Returns true if this packet contains FSR data (33-byte live streaming format)
+  bool hasFSRData() {
+    return fsrs.isNotEmpty;
+  }
+
   /// Converts the packet to JSON format
   Map<String, dynamic> toJson() {
-    return {
+    Map<String, dynamic> json = {
       'timestamp': timestamp,
       'accX': accX,
       'accY': accY,
@@ -102,10 +132,20 @@ class IMUPacket {
       'gyroY': gyroY,
       'gyroZ': gyroZ,
     };
+    
+    if (hasFSRData()) {
+      json['fsrs'] = fsrs;
+    }
+    
+    return json;
   }
 
   @override
   String toString() {
-    return 'IMUPacket(timestamp: $timestamp, acc: [$accX, $accY, $accZ], gyro: [$gyroX, $gyroY, $gyroZ])';
+    String base = 'IMUPacket(timestamp: $timestamp, acc: [$accX, $accY, $accZ], gyro: [$gyroX, $gyroY, $gyroZ]';
+    if (hasFSRData()) {
+      base += ', fsrs: $fsrs';
+    }
+    return base + ')';
   }
 }

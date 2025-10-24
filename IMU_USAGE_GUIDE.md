@@ -9,14 +9,45 @@ The LAAF insoles support raw IMU data collection, which includes:
 - **3-axis Gyroscope** data (X, Y, Z) in degrees/second
 - **Unix timestamps** with millisecond precision
 
-## IMU Data Packet Format
+## IMU Data Packet Formats
+
+The LAAF insoles support two different IMU packet formats:
+
+### 1. Live Streaming Format (33 bytes)
+Used during real-time streaming with `startStream()`
 
 - **Packet ID**: `0xD0` (208 in decimal)
-- **Packet Size**: 19 bytes
+- **Packet Size**: 33 bytes
 - **Byte Format**: Little-Endian
 - **Scaling**: 16,384 AD/g @ 2g range
+- **Update Rate**: ~20ms
 
-### Packet Structure
+| Bytes | Data Type | Description |
+|-------|-----------|-------------|
+| 0 | Packet ID | 0xD0 |
+| 1-4 | Timestamp (seconds) | Unix timestamp (seconds since 1970) |
+| 5-6 | Timestamp (milliseconds) | Milliseconds component |
+| 7-8 | Acc X | Raw accelerometer X (16-bit signed) |
+| 9-10 | Acc Y | Raw accelerometer Y (16-bit signed) |
+| 11-12 | Acc Z | Raw accelerometer Z (16-bit signed) |
+| 13-14 | Gyro X | Raw gyroscope X (16-bit signed) |
+| 15-16 | Gyro Y | Raw gyroscope Y (16-bit signed) |
+| 17-18 | Gyro Z | Raw gyroscope Z (16-bit signed) |
+| 19-20 | FSR 1 | Force sensor 1 (16-bit signed) |
+| 21-22 | FSR 2 | Force sensor 2 (16-bit signed) |
+| 23-24 | FSR 3 | Force sensor 3 (16-bit signed) |
+| 25-26 | FSR 4 | Force sensor 4 (16-bit signed) |
+| 27-28 | FSR 5 | Force sensor 5 (16-bit signed) |
+| 29-30 | FSR 6 | Force sensor 6 (16-bit signed) |
+| 31-32 | FSR 7 | Force sensor 7 (16-bit signed) |
+
+### 2. File Format (19 bytes)
+Used for offline data logging retrieved via `getFile()`
+
+- **Packet ID**: `0xD0` (208 in decimal)
+- **Packet Size**: 19 bytes (IMU data only, no FSR)
+- **Byte Format**: Little-Endian
+- **Scaling**: 16,384 AD/g @ 2g range
 
 | Bytes | Data Type | Description |
 |-------|-----------|-------------|
@@ -82,11 +113,16 @@ await device.getFile(1);
 ### 4. Monitor Live IMU Streaming
 
 ```dart
-// Observe live IMU packets during streaming
+// Observe live IMU packets during streaming (33-byte format with FSR data)
 device.imuPacket.observeChanges(1, (imuData) {
   print('IMU Timestamp: ${imuData.timestamp}');
   print('Acceleration: X=${imuData.accX}g, Y=${imuData.accY}g, Z=${imuData.accZ}g');
   print('Gyroscope: X=${imuData.gyroX}°/s, Y=${imuData.gyroY}°/s, Z=${imuData.gyroZ}°/s');
+  
+  // Live streaming packets also include FSR data
+  if (imuData.hasFSRData()) {
+    print('FSR sensors: ${imuData.fsrs}');
+  }
 });
 
 // Start streaming
@@ -268,11 +304,14 @@ class IMUDataCollector {
   - Use `startLogging(DataTypeFlags.rawIMU)` to enable
   - Data persists until explicitly erased
   - Must stop logging before retrieving files
+  - **Format**: 19-byte packets (IMU only, no FSR)
 
-- **Live Streaming**: IMU data streamed in real-time (if supported by firmware)
+- **Live Streaming**: IMU data streamed in real-time via BLE
   - Use `startStream()` to enable
   - Observe via `device.imuPacket` observable
   - No persistent storage
+  - **Format**: 33-byte packets (IMU + FSR data included)
+  - **Update Rate**: ~20ms (~50Hz)
 
 ### 2. Data Format
 
