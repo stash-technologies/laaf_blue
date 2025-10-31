@@ -63,7 +63,7 @@ class LaafProtocolExample {
 
     // Observe file data
     device.fileData.observeChanges(2, (data) {
-      print('Received file data chunk: ${data.length} bytes');
+      // print('Received file data chunk: ${data.length} bytes');
       // Process file data here
     });
 
@@ -71,7 +71,7 @@ class LaafProtocolExample {
     await device.getSummaryFile();
 
     device.summaryFile.observeChanges(3, (summaryData) {
-      print('Received summary file: ${summaryData.length} bytes');
+      // print('Received summary file: ${summaryData.length} bytes');
       // Process summary data here
     });
   }

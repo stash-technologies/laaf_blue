@@ -550,7 +550,7 @@ class MethodChannelBlue extends BluePlatform {
         device.fileData.update(chunk);
 
         if (isComplete) {
-          Logger.log("b", "File transfer complete for device $id");
+          // Logger.log("b", "File transfer complete for device $id");
         }
 
       case "summaryFileResponse":
@@ -563,7 +563,7 @@ class MethodChannelBlue extends BluePlatform {
         }
         final device = getDevice(id);
         device.summaryFile.update(summaryData);
-        Logger.log("b", "Summary file received for device $id (${summaryData.length} bytes)");
+        // Logger.log("b", "Summary file received for device $id (${summaryData.length} bytes)");
 
       case "fileOperationComplete":
         final args = call.arguments as Map;

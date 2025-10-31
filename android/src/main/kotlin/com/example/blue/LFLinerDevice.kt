@@ -271,7 +271,6 @@ class LFLinerDevice(
             0x10 -> { // Response to "get summary file" command
                 if (data.size > 1) {
                     val summaryData = data.sliceArray(1 until data.size)
-                    flutterMessage("Received summary file (${summaryData.size} bytes)")
                     channel.invokeMethod("summaryFileResponse", mapOf(
                         "id" to bluetoothDevice.address,
                         "data" to summaryData
