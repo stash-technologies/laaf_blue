@@ -1,7 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:blue/logger.dart';
-
 /// The IMU packet containing accelerometer and gyroscope data.
 /// Supports two formats:
 /// - File format: 19 bytes (IMU only)
@@ -18,8 +16,8 @@ class IMUPacket {
         gyroZ = _convertRawToDegPerSec(rawPacket.sublist(17, 19)),
         fsrs = rawPacket.length >= 33 ? _parseFSRData(rawPacket.sublist(19, 33)) : [] {
     // Debug logging to see raw packet
-    Logger.log('IMU_PACKET_DEBUG', 'Packet length = ${rawPacket.length}');
-    Logger.log('IMU_PACKET_DEBUG', 'First 20 bytes = ${rawPacket.take(20).toList()}');
+    // Logger.log('IMU_PACKET_DEBUG', 'Packet length = ${rawPacket.length}');
+    // Logger.log('IMU_PACKET_DEBUG', 'First 20 bytes = ${rawPacket.take(20).toList()}');
   }
 
   final Uint8List rawPacket;
@@ -52,13 +50,13 @@ class IMUPacket {
   /// Parses timestamp from bytes 1-6 (seconds + milliseconds)
   static num _getTimestamp(Uint8List timestampBytes) {
     final data = ByteData.sublistView(timestampBytes);
-    
+
     // Bytes 0-3: Unix timestamp in seconds (little-endian)
     int seconds = data.getUint32(0, Endian.little);
-    
+
     // Bytes 4-5: milliseconds (little-endian)
     int milliseconds = data.getUint16(4, Endian.little);
-    
+
     // Return timestamp with millisecond precision
     return num.parse((seconds + (milliseconds / 1000.0)).toStringAsFixed(3));
   }
@@ -68,7 +66,7 @@ class IMUPacket {
   static num _convertRawToG(Uint8List rawBytes) {
     final data = ByteData.sublistView(rawBytes);
     int rawValue = data.getInt16(0, Endian.little);
-    
+
     // Convert to g: raw / 16384
     return num.parse((rawValue / 16384.0).toStringAsFixed(6));
   }
@@ -79,7 +77,7 @@ class IMUPacket {
   static num _convertRawToDegPerSec(Uint8List rawBytes) {
     final data = ByteData.sublistView(rawBytes);
     int rawValue = data.getInt16(0, Endian.little);
-    
+
     // Convert using the same scale as accelerometer per documentation
     return num.parse((rawValue / 16384.0).toStringAsFixed(6));
   }
@@ -89,11 +87,11 @@ class IMUPacket {
   static List<num> _parseFSRData(Uint8List fsrBytes) {
     List<num> fsrs = [];
     final data = ByteData.sublistView(fsrBytes);
-    
+
     for (int i = 0; i < 14; i += 2) {
       fsrs.add(data.getInt16(i, Endian.little));
     }
-    
+
     return fsrs;
   }
 
@@ -138,11 +136,11 @@ class IMUPacket {
       'gyroY': gyroY,
       'gyroZ': gyroZ,
     };
-    
+
     if (hasFSRData()) {
       json['fsrs'] = fsrs;
     }
-    
+
     return json;
   }
 
