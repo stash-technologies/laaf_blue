@@ -156,7 +156,7 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
             
             // Log all incoming data for debugging
             let dataHex = data.map { String(format: "%02x", $0) }.joined()
-            flutterMessage("Raw data received: \(dataHex)", peripheral.identifier.uuidString)
+            // flutterMessage("Raw data received: \(dataHex)", peripheral.identifier.uuidString)
             
             // Skip empty data
             if data.count == 0 { return }
