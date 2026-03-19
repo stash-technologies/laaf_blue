@@ -18,7 +18,7 @@
     },
     {
       "name": "test",
-      "version": "1.26.2",
+      "version": "1.29.0",
       "dependencies": [
         "analyzer",
         "async",
@@ -27,7 +27,6 @@
         "coverage",
         "http_multi_server",
         "io",
-        "js",
         "matcher",
         "node_preamble",
         "package_config",
@@ -50,7 +49,7 @@
     },
     {
       "name": "flutter_lints",
-      "version": "2.0.3",
+      "version": "6.0.0",
       "dependencies": [
         "lints"
       ]
@@ -128,7 +127,7 @@
     },
     {
       "name": "test_core",
-      "version": "0.6.11",
+      "version": "0.6.15",
       "dependencies": [
         "analyzer",
         "args",
@@ -155,7 +154,7 @@
     },
     {
       "name": "test_api",
-      "version": "0.7.6",
+      "version": "0.7.9",
       "dependencies": [
         "async",
         "boolean_selector",
@@ -234,7 +233,7 @@
     },
     {
       "name": "pool",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "dependencies": [
         "async",
         "stack_trace"
@@ -259,7 +258,7 @@
     },
     {
       "name": "matcher",
-      "version": "0.12.17",
+      "version": "0.12.18",
       "dependencies": [
         "async",
         "meta",
@@ -267,11 +266,6 @@
         "term_glyph",
         "test_api"
       ]
-    },
-    {
-      "name": "js",
-      "version": "0.7.2",
-      "dependencies": []
     },
     {
       "name": "io",
@@ -291,7 +285,7 @@
     },
     {
       "name": "coverage",
-      "version": "1.14.1",
+      "version": "1.15.0",
       "dependencies": [
         "args",
         "cli_config",
@@ -329,7 +323,7 @@
     },
     {
       "name": "analyzer",
-      "version": "7.5.4",
+      "version": "10.0.1",
       "dependencies": [
         "_fe_analyzer_shared",
         "collection",
@@ -347,12 +341,12 @@
     },
     {
       "name": "lints",
-      "version": "2.1.1",
+      "version": "6.1.0",
       "dependencies": []
     },
     {
       "name": "meta",
-      "version": "1.16.0",
+      "version": "1.17.0",
       "dependencies": []
     },
     {
@@ -391,14 +385,14 @@
     },
     {
       "name": "material_color_utilities",
-      "version": "0.11.1",
+      "version": "0.13.0",
       "dependencies": [
         "collection"
       ]
     },
     {
       "name": "characters",
-      "version": "1.4.0",
+      "version": "1.4.1",
       "dependencies": []
     },
     {
@@ -427,7 +421,7 @@
     },
     {
       "name": "crypto",
-      "version": "3.0.6",
+      "version": "3.0.7",
       "dependencies": [
         "typed_data"
       ]
@@ -514,7 +508,7 @@
     },
     {
       "name": "watcher",
-      "version": "1.1.2",
+      "version": "1.2.1",
       "dependencies": [
         "async",
         "path"
@@ -529,9 +523,10 @@
     },
     {
       "name": "_fe_analyzer_shared",
-      "version": "85.0.0",
+      "version": "93.0.0",
       "dependencies": [
-        "meta"
+        "meta",
+        "source_span"
       ]
     },
     {
