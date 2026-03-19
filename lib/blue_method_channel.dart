@@ -386,6 +386,18 @@ class MethodChannelBlue extends BluePlatform {
     }
   }
 
+  @override
+  Future<int?> getBatteryLevel(String deviceId) async {
+    try {
+      Logger.log("b", "getting battery level for device $deviceId");
+      final result = await methodChannel.invokeMethod<int?>('getBatteryLevel', deviceId);
+      return result;
+    } catch (e) {
+      Logger.log("b error", "Get battery level error for device $deviceId: $e");
+      return null;
+    }
+  }
+
   LFLiner getDevice(String id) {
     try {
       return blueState.activeDevices.value().firstWhere((l) => l.id == id);
@@ -444,6 +456,17 @@ class MethodChannelBlue extends BluePlatform {
           final device = getDevice(id);
           device.firmwareVersion = version;
           Logger.log("b", "firmware version updated for device $id: $version");
+        }
+
+      case "batteryLevelUpdate":
+        final args = call.arguments as Map;
+        final id = args["id"] as String;
+        final level = args["level"] as int;
+        
+        if (blueState.activeDevices.value().isNotEmpty) {
+          final device = getDevice(id);
+          device.batteryLevel.update(level);
+          Logger.log("b", "battery level updated for device $id: $level%");
         }
 
       case "updateDeviceState":

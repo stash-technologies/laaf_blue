@@ -280,6 +280,19 @@ class Blue {
     }
   }
 
+  /// Get the battery level from the Battery Service.
+  /// Reads the Battery Level characteristic (UUID: 0x2A19).
+  /// Returns a value from 0 to 100 representing battery percentage.
+  /// The device must be connected for this to work.
+  Future<int?> getBatteryLevel(LFLiner device) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      final result = await BluePlatform.instance.getBatteryLevel(device.id);
+      return result;
+    } else {
+      return null;
+    }
+  }
+
   /// Removes the 'device' from 'blueState.activeDevices' Observable.
   bool remove(LFLiner device) {
     Logger.log("b", "removing device $device.id");

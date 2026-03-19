@@ -22,6 +22,7 @@ class LFLinerDevice(
     private var dataCharacteristic: BluetoothGattCharacteristic? = null
     private var modeCharacteristic: BluetoothGattCharacteristic? = null
     private var liveStreamCharacteristic: BluetoothGattCharacteristic? = null
+    private var batteryLevelCharacteristic: BluetoothGattCharacteristic? = null
     
     private val handler = Handler(Looper.getMainLooper())
     private var connectionResult: MethodChannel.Result? = null
@@ -31,6 +32,9 @@ class LFLinerDevice(
 
     companion object {
         private const val TAG = "LFLinerDevice"
+        // Battery Service UUIDs
+        val BATTERY_SERVICE_UUID: UUID = UUID.fromString("0000180F-0000-1000-8000-00805f9b34fb")
+        val BATTERY_LEVEL_CHAR_UUID: UUID = UUID.fromString("00002A19-0000-1000-8000-00805f9b34fb")
     }
 
     private data class ConnectionProgress(
@@ -97,6 +101,36 @@ class LFLinerDevice(
                     dataCharUuid -> {
                         // Handle LAAF protocol file management responses
                         handleDataCharacteristicResponse(data)
+                    }
+                }
+            }
+        }
+
+        override fun onCharacteristicRead(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                val data = characteristic.value
+                if (data != null && data.isNotEmpty()) {
+                    when (characteristic.uuid) {
+                        BATTERY_LEVEL_CHAR_UUID -> {
+                            val batteryLevel = data[0].toInt() and 0xFF
+                            flutterMessage("Battery level read: $batteryLevel%")
+                            handler.post {
+                                channel.invokeMethod("batteryLevelUpdate", mapOf(
+                                    "id" to bluetoothDevice.address,
+                                    "level" to batteryLevel
+                                ))
+                            }
+                        }
+                        modeCharUuid -> {
+                            val deviceState = data[0].toInt()
+                            flutterMessage("Device state updated: $deviceState")
+                            handler.post {
+                                channel.invokeMethod("updateDeviceState", mapOf(
+                                    "id" to bluetoothDevice.address,
+                                    "state" to deviceState
+                                ))
+                            }
+                        }
                     }
                 }
             }
@@ -205,6 +239,21 @@ class LFLinerDevice(
         enableNotifications(gatt, dataCharacteristic, "data")
         enableNotifications(gatt, modeCharacteristic, "mode")
         enableNotifications(gatt, liveStreamCharacteristic, "live stream")
+
+        // Discover Battery Service
+        val batteryService = gatt.getService(BATTERY_SERVICE_UUID)
+        if (batteryService != null) {
+            batteryLevelCharacteristic = batteryService.getCharacteristic(BATTERY_LEVEL_CHAR_UUID)
+            if (batteryLevelCharacteristic != null) {
+                flutterMessage("Battery Level characteristic found")
+                // Read battery level automatically on connection
+                gatt.readCharacteristic(batteryLevelCharacteristic)
+            } else {
+                flutterMessage("Battery Level characteristic not found")
+            }
+        } else {
+            flutterMessage("Battery Service not found")
+        }
     }
 
     private fun enableNotifications(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic?, name: String) {
@@ -333,8 +382,16 @@ class LFLinerDevice(
             dataCharUuid -> "data"
             modeCharUuid -> "mode"
             liveStreamCharUuid -> "live_stream"
+            BATTERY_LEVEL_CHAR_UUID -> "battery_level"
             else -> "unknown"
         }
+    }
+
+    fun readBatteryLevel(result: MethodChannel.Result) {
+        batteryLevelCharacteristic?.let { characteristic ->
+            bluetoothGatt?.readCharacteristic(characteristic)
+            result.success(true)
+        } ?: result.success(null)
     }
 
     private fun flutterMessage(message: String) {
@@ -352,6 +409,7 @@ class LFLinerDevice(
         dataCharacteristic = null
         modeCharacteristic = null
         liveStreamCharacteristic = null
+        batteryLevelCharacteristic = null
         connectionResult = null
         commandResult = null
     }

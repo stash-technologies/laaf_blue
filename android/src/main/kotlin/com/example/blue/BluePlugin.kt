@@ -96,6 +96,14 @@ class BluePlugin: FlutterPlugin, MethodCallHandler, ActivityAware, PluginRegistr
                     result.error("INVALID_ARGUMENT", "Device ID and command are required", null)
                 }
             }
+            "getBatteryLevel" -> {
+                val deviceId = call.arguments as? String
+                if (deviceId != null) {
+                    bluetoothManager.readBatteryLevel(deviceId, result)
+                } else {
+                    result.error("INVALID_ARGUMENT", "Device ID is required", null)
+                }
+            }
             else -> {
                 result.notImplemented()
             }

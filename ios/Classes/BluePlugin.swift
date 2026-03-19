@@ -138,6 +138,11 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
             let firmwareVersion = getFirmwareVersion(deviceId: deviceId)
             result(firmwareVersion)
             
+        case "getBatteryLevel":
+            let deviceId = call.arguments as! String
+            let batteryLevel = readBatteryLevel(deviceId: deviceId)
+            result(batteryLevel)
+            
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -171,6 +176,35 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
                                     // Read the characteristic value if available
                                     if let value = characteristic.value {
                                         return String(data: value, encoding: .utf8)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return nil
+    }
+    
+    func readBatteryLevel(deviceId: String) -> Int? {
+        // Find the connected device
+        let device = connectedDevices.first(where: {$0.id == deviceId})
+        
+        if let peripheral = device?.peripheral {
+            // Look for Battery Service (0x180F)
+            if let services = peripheral.services {
+                for service in services {
+                    if service.uuid == CBUUID(string: "180F") {
+                        if let characteristics = service.characteristics {
+                            for characteristic in characteristics {
+                                if characteristic.uuid == CBUUID(string: "2A19") {
+                                    // Trigger a read to get the latest value
+                                    peripheral.readValue(for: characteristic)
+                                    // Return cached value if available
+                                    if let value = characteristic.value, !value.isEmpty {
+                                        return Int(value[0])
                                     }
                                 }
                             }
@@ -223,7 +257,7 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
         // Check if this is a DFU device by looking for DFU service
         // If it has DFU service, handle it as DFU device, otherwise as LAAF device
         // Also discover Device Information Service for firmware version
-        peripheral.discoverServices([uuids!.service, uuids!.dfuTarget, CBUUID(string: "180A")])
+        peripheral.discoverServices([uuids!.service, uuids!.dfuTarget, CBUUID(string: "180A"), CBUUID(string: "180F")])
     }
     
     //TODO => these should check for errors (even though I've never had one)

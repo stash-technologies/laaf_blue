@@ -49,6 +49,9 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
             } else if service.uuid == CBUUID(string: "180A") {
                 // Device Information Service - discover firmware revision characteristic
                 peripheral.discoverCharacteristics([CBUUID(string: "00002A26-0000-1000-8000-00805F9B34FB")], for: service)
+            } else if service.uuid == CBUUID(string: "180F") {
+                // Battery Service - discover battery level characteristic
+                peripheral.discoverCharacteristics([CBUUID(string: "2A19")], for: service)
             }
         }
     }
@@ -81,6 +84,14 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
             for c in service.characteristics! {
                 if c.uuid == CBUUID(string: "00002A26-0000-1000-8000-00805F9B34FB") {
                     // Read firmware revision string automatically
+                    peripheral.readValue(for: c)
+                }
+            }
+        } else if service.uuid == CBUUID(string: "180F") {
+            // Handle Battery Service
+            for c in service.characteristics! {
+                if c.uuid == CBUUID(string: "2A19") {
+                    // Read battery level automatically on connection
                     peripheral.readValue(for: c)
                 }
             }
@@ -147,6 +158,15 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
                let firmwareVersion = String(data: firmwareData, encoding: .utf8) {
                 flutterMessage("firmware version read: \(firmwareVersion)", peripheral.identifier.uuidString)
                 BluePlugin.fChannel.invokeMethod("firmwareVersionRead", arguments: ["id": peripheral.identifier.uuidString, "version": firmwareVersion])
+            }
+        }
+        
+        // Handle battery level read from Battery Service
+        if (characteristic.uuid == CBUUID(string: "2A19")) {
+            if let batteryData = characteristic.value, !batteryData.isEmpty {
+                let batteryLevel = Int(batteryData[0])
+                flutterMessage("battery level read: \(batteryLevel)%", peripheral.identifier.uuidString)
+                BluePlugin.fChannel.invokeMethod("batteryLevelUpdate", arguments: ["id": peripheral.identifier.uuidString, "level": batteryLevel])
             }
         }
         

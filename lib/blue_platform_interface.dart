@@ -108,6 +108,10 @@ abstract class BluePlatform extends PlatformInterface {
     throw UnimplementedError('getFirmwareVersion() has not been implemented');
   }
 
+  Future<int?> getBatteryLevel(String deviceId) {
+    throw UnimplementedError('getBatteryLevel() has not been implemented');
+  }
+
   BlueState getBlueState() {
     return _instance.getBlueState();
   }

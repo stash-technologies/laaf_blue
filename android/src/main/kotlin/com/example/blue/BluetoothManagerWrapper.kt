@@ -194,6 +194,16 @@ class BluetoothManagerWrapper(
         device.sendCommand(command, result)
     }
 
+    fun readBatteryLevel(deviceId: String, result: MethodChannel.Result) {
+        val device = connectedDevices[deviceId]
+        if (device == null) {
+            result.success(null)
+            return
+        }
+
+        device.readBatteryLevel(result)
+    }
+
     private fun updateScannedDevices() {
         val deviceList = scannedDevices.values.map { device ->
             mapOf(

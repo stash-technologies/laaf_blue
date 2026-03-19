@@ -61,6 +61,9 @@ class LFLiner {
   /// Current logging data type flags
   Observable<int> loggingDataTypes = Observable(0);
 
+  /// Battery level percentage (0-100)
+  Observable<int> batteryLevel = Observable(0);
+
   LFLiner(this.id, this.name) {
     deviceState.name = "d_state ($id)";
     liveStreamPacket.name = "packet ($id)";
@@ -72,6 +75,7 @@ class LFLiner {
     summaryFile.name = "summary_file ($id)";
     loggingDataTypes.name = "logging_types ($id)";
     imuPacket.name = "imu_packet ($id)";
+    batteryLevel.name = "battery ($id)";
 
     bool isRight = name.contains('R');
     if (isRight) {
@@ -461,6 +465,23 @@ class LFLiner {
     }
   }
 
+  /// Get the battery level from the Battery Service.
+  /// Reads the Battery Level characteristic (UUID: 0x2A19).
+  /// Returns a value from 0 to 100 representing battery percentage.
+  /// Updates the batteryLevel observable with the result.
+  Future<int?> getBatteryLevel() async {
+    try {
+      final level = await blue.getBatteryLevel(this);
+      if (level != null) {
+        batteryLevel.update(level);
+      }
+      return level;
+    } catch (e) {
+      message.update('Get battery level error: $e');
+      return null;
+    }
+  }
+
   // New LAAF protocol file management methods
 
   /// Set the device time to synchronize with phone. Must be called before logging.
@@ -603,6 +624,7 @@ class LFLiner {
       fileData.removeRelevantObservers(id);
       summaryFile.removeRelevantObservers(id);
       loggingDataTypes.removeRelevantObservers(id);
+      batteryLevel.removeRelevantObservers(id);
     } catch (e) {
       message.update('Remove relevant observers error: $e');
     }
@@ -625,6 +647,7 @@ class LFLiner {
       fileData.removeAllObservers();
       summaryFile.removeAllObservers();
       loggingDataTypes.removeAllObservers();
+      batteryLevel.removeAllObservers();
     } catch (e) {
       message.update('Remove all observers error: $e');
     }
