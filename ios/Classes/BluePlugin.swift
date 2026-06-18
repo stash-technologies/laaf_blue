@@ -76,15 +76,14 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
             
         case "connect":
             let deviceID = call.arguments as! String
-            
-            let selectedPeripheral = discoveredDevices.first(where: {$0.identifier.uuidString == deviceID})
-            
-            if (selectedPeripheral == nil) {
+
+            guard let selectedPeripheral = findPeripheral(deviceID: deviceID) else {
+                flutterMessage("couldn't find device with id: \(deviceID)")
                 result(false)
                 break
             }
-            
-            centralManager.connect(selectedPeripheral!)
+
+            centralManager.connect(selectedPeripheral)
             result(true)
             
         case "checkMode":
@@ -148,6 +147,30 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
         }
     }
     
+    func findPeripheral(deviceID: String) -> CBPeripheral? {
+        let normalizedId = deviceID.lowercased()
+
+        if let discovered = discoveredDevices.first(where: { $0.identifier.uuidString.lowercased() == normalizedId }) {
+            return discovered
+        }
+
+        if let connected = connectedDevices.first(where: { $0.id.lowercased() == normalizedId })?.peripheral {
+            return connected
+        }
+
+        if let uuids = uuids {
+            let retrieved = centralManager.retrieveConnectedPeripherals(withServices: [uuids.service])
+            if let peripheral = retrieved.first(where: { $0.identifier.uuidString.lowercased() == normalizedId }) {
+                if !discoveredDevices.contains(peripheral) {
+                    discoveredDevices.append(peripheral)
+                }
+                return peripheral
+            }
+        }
+
+        return nil
+    }
+
     func getMacAddress(deviceId: String) -> String? {
         // Find the connected device
         let device = connectedDevices.first(where: {$0.id == deviceId})
@@ -283,7 +306,7 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
     public func checkDeviceState(_ id: String) {
         flutterMessage("checking device state...", id)
 
-        guard let liner = connectedDevices.first(where: { $0.id == id }),
+        guard let liner = connectedDevices.first(where: { $0.id.lowercased() == id.lowercased() }),
               let peripheral = liner.peripheral,
               let modeChar = liner.modeChar else {
             flutterMessage("could not check device state - device not connected or mode char unavailable", id)

@@ -44,7 +44,7 @@ class Observable<T> {
     List observersToRemove = List.empty();
 
     if (shouldLog) {
-      Logger.log("'$name': $newValue", tag: "obs");
+      Logger.log("obs", "'$name': $newValue");
     }
 
     for (Observer o in _observers) {
@@ -53,7 +53,7 @@ class Observable<T> {
         o.function(newValue);
       } on Exception {
         if (shouldLog) {
-          Logger.log("removing observer ${o.id}", tag: "obs-err");
+          Logger.log("obs-err", "removing observer ${o.id}");
         }
         observersToRemove.add(o);
       }

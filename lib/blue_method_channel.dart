@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'blue_platform_interface.dart';
 import 'blue_state.dart';
 import 'bluetooth_status.dart';
+import 'device_id.dart';
 import 'device_state.dart';
 import 'lf_liner.dart';
 import 'logger.dart';
@@ -399,19 +400,65 @@ class MethodChannelBlue extends BluePlatform {
   }
 
   LFLiner getDevice(String id) {
-    try {
-      return blueState.activeDevices.value().firstWhere((l) => l.id == id);
-    } catch (e) {
-      Logger.log("b error", "Get device error for id $id: $e");
-      return LFLiner.emptyDevice();
+    final device = findDevice(id);
+    if (device != null) {
+      return device;
     }
+    Logger.log("b error", "Get device error for id $id: not found");
+    return LFLiner.emptyDevice();
   }
 
   LFLiner? findDevice(String id) {
-    try {
-      return blueState.activeDevices.value().firstWhere((l) => l.id == id);
-    } catch (e) {
-      return null;
+    for (final device in blueState.activeDevices.value()) {
+      if (deviceIdsMatch(device.id, id)) {
+        return device;
+      }
+    }
+    return null;
+  }
+
+  /// Ensures a device with [id] is tracked in [activeDevices], pulling from
+  /// [scannedDevices] when the native layer connected before Dart registered it.
+  void ensureDeviceInActiveDevices(String id) {
+    if (findDevice(id) != null) {
+      return;
+    }
+
+    for (final device in blueState.scannedDevices.value()) {
+      if (deviceIdsMatch(device.id, id)) {
+        final devices = List<LFLiner>.from(blueState.activeDevices.value());
+        devices.removeWhere((d) => deviceIdsMatch(d.id, id));
+        devices.add(device);
+        blueState.activeDevices.update(devices);
+        Logger.log("b", "registered $id in activeDevices from scannedDevices");
+        return;
+      }
+    }
+
+    Logger.log("b warning", "connectionComplete for $id but device not in activeDevices or scannedDevices");
+  }
+
+  /// Updates [deviceState] on every [LFLiner] with a matching id so UI code
+  /// watching either [activeDevices] or [scannedDevices] stays in sync.
+  void applyDeviceState(String id, DeviceState state) {
+    var updated = false;
+
+    void updateIfMatch(LFLiner device) {
+      if (deviceIdsMatch(device.id, id)) {
+        device.deviceState.update(state);
+        updated = true;
+      }
+    }
+
+    for (final device in blueState.activeDevices.value()) {
+      updateIfMatch(device);
+    }
+    for (final device in blueState.scannedDevices.value()) {
+      updateIfMatch(device);
+    }
+
+    if (!updated) {
+      Logger.log("b warning", "device state update ignored - $id not found in active or scanned devices");
     }
   }
 
@@ -451,11 +498,13 @@ class MethodChannelBlue extends BluePlatform {
       case "connectionComplete":
         final id = call.arguments as String;
 
-        // reset step calculator
+        Logger.log("b", "connectionComplete for $id");
+
+        ensureDeviceInActiveDevices(id);
 
         blueState.stepDataCalculator.reset();
 
-        checkMode(id);
+        await checkMode(id);
 
       case "firmwareVersionRead":
         final args = call.arguments as Map;
@@ -482,23 +531,20 @@ class MethodChannelBlue extends BluePlatform {
       case "updateDeviceState":
         final args = call.arguments as Map;
         final id = args["id"] as String;
-        final DeviceState updatedState = DeviceState.values[args["state"] as int];
+        final stateIndex = args["state"] as int;
+        if (stateIndex < 0 || stateIndex >= DeviceState.values.length) {
+          Logger.log("b warning", "invalid device state index $stateIndex for $id");
+          return;
+        }
+        final DeviceState updatedState = DeviceState.values[stateIndex];
         Logger.log("b", "device state update: $id / $updatedState");
 
         final device = findDevice(id);
-        if (device == null) {
-          Logger.log("b warning", "device state update ignored - $id not in activeDevices");
-          return;
+        if (device != null) {
+          device.message.update("state updated...");
         }
 
-        // clear messages
-        device.message.update("state updated...");
-
-        device.deviceState.update(updatedState);
-
-        if (updatedState == DeviceState.logging) {
-          /// the device thinks it logging if it reset when streaming...
-        }
+        applyDeviceState(id, updatedState);
 
       case "deviceDisconnected":
         final id = call.arguments as String;

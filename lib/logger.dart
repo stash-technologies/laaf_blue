@@ -1,14 +1,19 @@
 import 'dart:developer' as dev;
+
+import 'package:flutter/foundation.dart';
+
 /// A logging utility that allows variable logging methods by replacing the core
-/// 'log' function.  It is sent to 'print' by default.
+/// 'log' function. Output goes to [debugPrint] so it appears in the Flutter
+/// debug console, and to [dev.log] for DevTools.
 class Logger {
   /// If this is false, no logs will be processed.
   static bool shouldLog = true;
 
   static Function log = (tag, str) {
-    // the default method is to 'print()'.
     if (shouldLog) {
-      dev.log("$tag: $str");
+      final message = "[$tag] $str";
+      debugPrint(message);
+      dev.log(message, name: tag.toString());
     }
   };
 

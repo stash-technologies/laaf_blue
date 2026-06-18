@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:blue/bluetooth_status.dart';
 
 import 'blue_platform_interface.dart';
+import 'device_id.dart';
 import 'device_state.dart';
 import 'lf_liner.dart';
 
@@ -98,11 +99,10 @@ class Blue {
   /// (either way, it only appears in debugging).
   Future<bool> connect(LFLiner device) async {
     if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
-      final devices = blueState.activeDevices.value();
-      if (!devices.contains(device)) {
-        devices.add(device);
-        blueState.activeDevices.update(devices);
-      }
+      final devices = List<LFLiner>.from(blueState.activeDevices.value());
+      devices.removeWhere((d) => deviceIdsMatch(d.id, device.id));
+      devices.add(device);
+      blueState.activeDevices.update(devices);
 
       final result = await BluePlatform.instance.connect(device.id).timeout(
           const Duration(seconds: timeUntilTimeout),
@@ -300,7 +300,7 @@ class Blue {
     final devices = blueState.activeDevices.value();
 
     final preRemovalLength = devices.length;
-    devices.removeWhere((d) => d.id == device.id);
+    devices.removeWhere((d) => deviceIdsMatch(d.id, device.id));
 
     if (preRemovalLength == devices.length) {
       return false;

@@ -9,6 +9,7 @@ import 'package:blue/logger.dart';
 import 'package:blue/step_data_packet.dart';
 
 import 'blue.dart';
+import 'device_id.dart';
 import 'device_state.dart';
 import 'foot.dart';
 import 'observable.dart';
@@ -22,6 +23,21 @@ class LFLiner {
   String firmwareVersion = "";
 
   final Blue blue = Blue();
+
+  /// The instance in [BlueState.activeDevices] for this device id, if registered.
+  LFLiner? get activeEntry {
+    for (final device in blue.blueState.activeDevices.value()) {
+      if (deviceIdsMatch(device.id, id)) {
+        return device;
+      }
+    }
+    return null;
+  }
+
+  /// Prefer observing state on this instance when connected; it tracks the
+  /// canonical [activeDevices] entry for this id.
+  Observable<DeviceState> get trackedDeviceState =>
+      activeEntry?.deviceState ?? deviceState;
 
   /// The device's state [uninitialized, logging, idle, streaming, disconnected]
   Observable<DeviceState> deviceState = Observable(DeviceState.uninitialized);

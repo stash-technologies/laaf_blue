@@ -129,6 +129,9 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
         
         if (bluetoothConnectionProgress.complete()) {
             flutterMessage("connection complete", peripheral.identifier.uuidString)
+            if let modeChar = modeChar {
+                peripheral.readValue(for: modeChar)
+            }
             BluePlugin.fChannel.invokeMethod("connectionComplete", arguments: peripheral.identifier.uuidString)
             bluetoothConnectionProgress.reset()
         }
@@ -138,12 +141,16 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
         //flutterMessage("new value for \(peripheral.identifier.uuidString) \(parseCharacteristic(characteristic: characteristic)) characteristic: \(characteristic.value!.map { String(format: "%02x", $0)}.joined())", peripheral.identifier.uuidString)
         
         if (characteristic == modeChar) {
-            var deviceStateInt = characteristic.value![0]
+            guard let value = characteristic.value, !value.isEmpty else {
+                flutterMessage("mode characteristic empty", peripheral.identifier.uuidString)
+                return
+            }
+            var deviceStateInt = value[0]
             // sometimes (after firmware update), you can get garbage here
             if (deviceStateInt > 1) {
                 deviceStateInt = 0
             }
-            
+
             // +1 to align with flutter side enum
             BluePlugin.fChannel.invokeMethod("updateDeviceState", arguments: ["id": peripheral.identifier.uuidString, "state" : deviceStateInt + 1])
         }

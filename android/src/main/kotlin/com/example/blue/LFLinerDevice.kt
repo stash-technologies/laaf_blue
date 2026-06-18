@@ -168,6 +168,9 @@ class LFLinerDevice(
                 
                 if (connectionProgress.isComplete()) {
                     flutterMessage("All notifications enabled, connection complete")
+                    modeCharacteristic?.let { characteristic ->
+                        bluetoothGatt?.readCharacteristic(characteristic)
+                    }
                     channel.invokeMethod("connectionComplete", bluetoothDevice.address)
                     connectionResult?.success(true)
                     connectionResult = null
