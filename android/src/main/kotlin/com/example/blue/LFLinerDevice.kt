@@ -83,12 +83,11 @@ class LFLinerDevice(
             if (data != null) {
                 when (characteristic.uuid) {
                     modeCharUuid -> {
-                        // Device state update
-                        val deviceState = data[0].toInt()
-                        flutterMessage("Device state updated: $deviceState")
+                        val flutterState = mapDeviceStateForFlutter(data[0].toInt())
+                        flutterMessage("Device state updated: $flutterState")
                         channel.invokeMethod("updateDeviceState", mapOf(
                             "id" to bluetoothDevice.address,
-                            "state" to deviceState
+                            "state" to flutterState
                         ))
                     }
                     liveStreamCharUuid -> {
@@ -122,12 +121,12 @@ class LFLinerDevice(
                             }
                         }
                         modeCharUuid -> {
-                            val deviceState = data[0].toInt()
-                            flutterMessage("Device state updated: $deviceState")
+                            val flutterState = mapDeviceStateForFlutter(data[0].toInt())
+                            flutterMessage("Device state updated: $flutterState")
                             handler.post {
                                 channel.invokeMethod("updateDeviceState", mapOf(
                                     "id" to bluetoothDevice.address,
-                                    "state" to deviceState
+                                    "state" to flutterState
                                 ))
                             }
                         }
@@ -374,6 +373,15 @@ class LFLinerDevice(
                 flutterMessage("Unknown command response: 0x${"%02x".format(commandId)}")
             }
         }
+    }
+
+    /// Maps raw hardware mode byte to Flutter [DeviceState] enum index (+1 offset, matching iOS).
+    private fun mapDeviceStateForFlutter(rawState: Int): Int {
+        var deviceState = rawState and 0xFF
+        if (deviceState > 1) {
+            deviceState = 0
+        }
+        return deviceState + 1
     }
 
     private fun parseCharacteristic(characteristic: BluetoothGattCharacteristic): String {

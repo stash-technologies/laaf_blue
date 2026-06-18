@@ -407,6 +407,14 @@ class MethodChannelBlue extends BluePlatform {
     }
   }
 
+  LFLiner? findDevice(String id) {
+    try {
+      return blueState.activeDevices.value().firstWhere((l) => l.id == id);
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<void> methodHandler(MethodCall call) async {
     try {
       switch (call.method) {
@@ -414,7 +422,9 @@ class MethodChannelBlue extends BluePlatform {
         final state = BluetoothStatus.values[(call.arguments as int)];
 
         blueState.bluetoothStatus.update(state);
-        blueState.activeDevices.update([]);
+        if (state == BluetoothStatus.unavailable) {
+          blueState.activeDevices.update([]);
+        }
 
       case "flutterMessage":
         final args = call.arguments as Map;
@@ -475,10 +485,11 @@ class MethodChannelBlue extends BluePlatform {
         final DeviceState updatedState = DeviceState.values[args["state"] as int];
         Logger.log("b", "device state update: $id / $updatedState");
 
-        if (blueState.activeDevices.value().isEmpty) {
+        final device = findDevice(id);
+        if (device == null) {
+          Logger.log("b warning", "device state update ignored - $id not in activeDevices");
           return;
         }
-        final device = getDevice(id);
 
         // clear messages
         device.message.update("state updated...");

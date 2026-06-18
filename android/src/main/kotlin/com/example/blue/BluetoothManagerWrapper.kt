@@ -217,12 +217,13 @@ class BluetoothManagerWrapper(
     }
 
     private fun notifyBluetoothState() {
+        // Align with Flutter BluetoothStatus: 1 = available, 2 = unavailable
         val state = when {
-            bluetoothAdapter == null -> 0 // unavailable
-            !bluetoothAdapter.isEnabled -> 1 // disabled
-            else -> 2 // available
+            bluetoothAdapter == null -> 2
+            !bluetoothAdapter.isEnabled -> 2
+            else -> 1
         }
-        
+
         channel.invokeMethod("bluetoothStateUpdate", state)
     }
 

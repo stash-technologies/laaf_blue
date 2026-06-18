@@ -282,12 +282,15 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
     
     public func checkDeviceState(_ id: String) {
         flutterMessage("checking device state...", id)
-        
-        let liner = connectedDevices.first(where: {$0.id == id})
-        
-        if (liner != nil) {
-            discoveredDevices.first(where: {$0.identifier.uuidString == id})!.readValue(for: liner!.modeChar)
+
+        guard let liner = connectedDevices.first(where: { $0.id == id }),
+              let peripheral = liner.peripheral,
+              let modeChar = liner.modeChar else {
+            flutterMessage("could not check device state - device not connected or mode char unavailable", id)
+            return
         }
+
+        peripheral.readValue(for: modeChar)
     }
 }
 
