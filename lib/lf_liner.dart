@@ -191,7 +191,7 @@ class LFLiner {
       final result = await blue.startStream(this);
 
       if (result == true) {
-        return await blue.startLogging(this, DataTypeFlags.all);
+        return await blue.startLogging(this, DataTypeFlags.stepAndFSR);
       } else {
         return result;
       }
@@ -601,7 +601,7 @@ class LFLiner {
     try {
       final timeResult = await setTime(timestamp: timestamp);
       if (timeResult) {
-        return await startLogging(DataTypeFlags.all);
+        return await startLogging(DataTypeFlags.stepAndFSR);
       }
       return false;
     } catch (e) {
