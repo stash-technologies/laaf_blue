@@ -37,4 +37,48 @@ class Logger {
   static void logG(s) {
     Logger.log("General", s);
   }
+
+  /// Formats [bytes] as space-separated lowercase hex pairs.
+  /// When [maxBytes] is set, truncates with a trailing byte count.
+  static String formatBytesHex(Uint8List bytes, {int? maxBytes}) {
+    final int limit = maxBytes != null && bytes.length > maxBytes ? maxBytes : bytes.length;
+    final hex = bytes.take(limit).map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
+    if (maxBytes != null && bytes.length > maxBytes) {
+      return '$hex ... (+${bytes.length - maxBytes} bytes)';
+    }
+    return hex;
+  }
+
+  static String packetTypeLabel(int typeId) {
+    switch (typeId) {
+      case 0xD5:
+        return 'Step';
+      case 0xE0:
+        return 'FSR';
+      case 0xD0:
+        return 'IMU';
+      default:
+        return 'unknown';
+    }
+  }
+
+  /// Logs raw bytes received from an insole (live stream or file chunk).
+  static void logInsoleRx(
+    String deviceId,
+    String foot,
+    Uint8List bytes, {
+    String source = 'live_stream',
+    int? maxBytes,
+  }) {
+    if (!shouldLog || bytes.isEmpty) return;
+
+    final typeId = bytes[0];
+    final typeHex = '0x${typeId.toRadixString(16).padLeft(2, '0')}';
+    log(
+      'INSOLE_RX',
+      'source=$source device=$deviceId foot=$foot '
+      'type=$typeHex (${packetTypeLabel(typeId)}) '
+      'len=${bytes.length} hex=${formatBytesHex(bytes, maxBytes: maxBytes)}',
+    );
+  }
 }

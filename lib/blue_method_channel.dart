@@ -576,6 +576,8 @@ class MethodChannelBlue extends BluePlatform {
         }
         final device = getDevice(id);
 
+        Logger.logInsoleRx(id, device.side.name, packet);
+
         if (device.liveStreamPacket.hasObservers()) {
           device.liveStreamPacket.update(packet);
         }
@@ -629,8 +631,10 @@ class MethodChannelBlue extends BluePlatform {
         final device = getDevice(id);
         device.fileData.update(chunk);
 
+        Logger.logInsoleRx(id, device.side.name, chunk, source: 'file_chunk', maxBytes: 48);
+
         if (isComplete) {
-          // Logger.log("b", "File transfer complete for device $id");
+          Logger.log("b", "File transfer complete for device $id");
         }
 
       case "summaryFileResponse":
