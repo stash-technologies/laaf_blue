@@ -191,7 +191,7 @@ class LFLiner {
       final result = await blue.startStream(this);
 
       if (result == true) {
-        return await blue.startLogging(this, DataTypeFlags.stepAndFSR);
+        return await blue.startLogging(this, DataTypeFlags.stepData);
       } else {
         return result;
       }
@@ -205,13 +205,11 @@ class LFLiner {
   /// were sent to the device.
   Future<bool> stopLiveStream() async {
     try {
-      final result = await blue.stopLogging(this);
+      final streamResult =await blue.stopStream(this);
 
-      if (result == true) {
-        return await blue.stopStream(this);
-      } else {
-        return result;
-      }
+      final loggingResult =await blue.stopLogging(this);
+
+      return streamResult && loggingResult;
     } catch (e) {
       message.update('Stop live stream error: $e');
       return false;
