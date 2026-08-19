@@ -403,10 +403,14 @@ class Blue {
         return Future<bool>(() => false);
       }
 
+      // Command write only — chunk transfer is waited on by [LFLiner.downloadFile].
       final result = await BluePlatform.instance.getFile(device.id, fileIndex)
-          .timeout(const Duration(seconds: timeUntilTimeout),
-              onTimeout: timeoutFunction("blue.getFile",
-                  device.id.substring(device.id.length - 5)));
+          .timeout(const Duration(seconds: 15),
+              onTimeout: () {
+                Logger.log("timeout",
+                    "timeout occurred in function 'blue.getFile' with device '${device.id.substring(device.id.length - 5)}'");
+                return Future<bool>(() => false);
+              });
 
       return nonNullResult(result);
     } else {

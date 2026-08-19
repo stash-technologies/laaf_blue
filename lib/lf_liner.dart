@@ -103,6 +103,13 @@ class LFLiner {
   Timer? timer;
   int lastPacketTime = 0;
 
+  /// Assembled onboard-file bytes (BLE delivers the file in GATT chunks).
+  final BytesBuilder _fileDownloadBuffer = BytesBuilder(copy: false);
+  Completer<Uint8List?>? _fileDownloadCompleter;
+  Timer? _fileDownloadIdleTimer;
+  Timer? _fileDownloadOverallTimer;
+  Duration _fileDownloadIdle = const Duration(milliseconds: 1200);
+
   static LFLiner deviceFromMap(Map map) {
     return LFLiner(map["id"], map["name"]);
   }
@@ -182,19 +189,30 @@ class LFLiner {
     }
   }
 
-  /// Start live streming step and fsr data from this device. All packet's will
-  /// appear in their raw form in 'liveStreamPacket', or their parsed forms
-  /// in the 'fsrPacket', or 'stepPacket' observables.  Returns 'true' if the
-  /// start stream and start log commands were sent to the device.
-  Future<bool> startLiveStream() async {
+  /// Start live streaming from this device.
+  ///
+  /// Packets appear in [liveStreamPacket] and the parsed [fsrPacket],
+  /// [stepPacket], and [imuPacket] observables.
+  ///
+  /// When [loggingFlags] is set (e.g. [DataTypeFlags.stepAndFSR]), the device
+  /// clock is synced and onboard file logging starts with those types.
+  /// Omit [loggingFlags] for UI-only streaming (calibration, sensor tests)
+  /// so no files are written to insole memory.
+  Future<bool> startLiveStream({int? loggingFlags}) async {
     try {
       final result = await blue.startStream(this);
-
-      if (result == true) {
-        return await blue.startLogging(this, DataTypeFlags.stepData);
-      } else {
+      if (result != true) {
         return result;
       }
+      if (loggingFlags == null) {
+        return true;
+      }
+      final timeSet = await setTime();
+      if (!timeSet) {
+        message.update('Set time failed before onboard logging');
+        return false;
+      }
+      return await startLogging(loggingFlags);
     } catch (e) {
       message.update('Start live stream error: $e');
       return false;
@@ -547,11 +565,108 @@ class LFLiner {
   /// Retrieve a specific file by index (1-based). File data streams through fileData observable.
   Future<bool> getFile(int fileIndex) async {
     try {
+      _prepareFileAssembly();
       return await blue.getFile(this, fileIndex);
     } catch (e) {
       message.update('Get file error: $e');
       return false;
     }
+  }
+
+  /// Download a full onboard file by concatenating GATT chunks.
+  /// Completes after [idleComplete] with no new chunks, or [overallTimeout].
+  Future<Uint8List?> downloadFile(
+    int fileIndex, {
+    Duration idleComplete = const Duration(milliseconds: 1200),
+    Duration overallTimeout = const Duration(minutes: 5),
+  }) async {
+    try {
+      final device = activeEntry ?? this;
+      if (!identical(device, this)) {
+        return device.downloadFile(
+          fileIndex,
+          idleComplete: idleComplete,
+          overallTimeout: overallTimeout,
+        );
+      }
+      _prepareFileAssembly(idleComplete: idleComplete, overallTimeout: overallTimeout);
+      final sent = await blue.getFile(this, fileIndex);
+      if (!sent) {
+        _finishFileAssembly(success: false);
+        return null;
+      }
+      return _fileDownloadCompleter?.future;
+    } catch (e) {
+      message.update('Download file error: $e');
+      _finishFileAssembly(success: false);
+      return null;
+    }
+  }
+
+  void _prepareFileAssembly({
+    Duration idleComplete = const Duration(milliseconds: 1200),
+    Duration overallTimeout = const Duration(minutes: 5),
+  }) {
+    _cancelFileDownloadTimers();
+    if (_fileDownloadCompleter != null && !_fileDownloadCompleter!.isCompleted) {
+      _fileDownloadCompleter!.complete(null);
+    }
+    if (_fileDownloadBuffer.length > 0) {
+      _fileDownloadBuffer.takeBytes();
+    }
+    _fileDownloadIdle = idleComplete;
+    fileData.update(Uint8List(0));
+    _fileDownloadCompleter = Completer<Uint8List?>();
+    _fileDownloadOverallTimer = Timer(overallTimeout, () {
+      Logger.log('LF_LINER', 'File download overall timeout for $id');
+      _finishFileAssembly(success: _fileDownloadBuffer.length > 0);
+    });
+  }
+
+  /// Called from the method channel for each GATT file chunk.
+  void appendFileChunk(Uint8List chunk, {bool isComplete = false}) {
+    if (_isNoiseFileHeader(chunk)) {
+      Logger.log('LF_LINER', 'Skipping 9-byte 0x10 file header chunk');
+      return;
+    }
+    if (chunk.isEmpty) {
+      return;
+    }
+    _fileDownloadBuffer.add(chunk);
+    _fileDownloadIdleTimer?.cancel();
+    if (isComplete) {
+      _finishFileAssembly(success: true);
+      return;
+    }
+    _fileDownloadIdleTimer = Timer(_fileDownloadIdle, () {
+      _finishFileAssembly(success: true);
+    });
+  }
+
+  static bool _isNoiseFileHeader(Uint8List chunk) {
+    return chunk.length == 9 && chunk[0] == 0x10;
+  }
+
+  void _finishFileAssembly({required bool success}) {
+    _cancelFileDownloadTimers();
+    final completer = _fileDownloadCompleter;
+    final bytes = success && _fileDownloadBuffer.length > 0
+        ? Uint8List.fromList(_fileDownloadBuffer.takeBytes())
+        : Uint8List(0);
+    if (bytes.isNotEmpty) {
+      fileData.update(bytes);
+    }
+    if (completer != null && !completer.isCompleted) {
+      completer.complete(bytes.isEmpty ? null : bytes);
+    }
+    _fileDownloadCompleter = null;
+  }
+
+  void _cancelFileDownloadTimers() {
+    _fileDownloadIdleTimer?.cancel();
+    _fileDownloadIdleTimer = null;
+    _fileDownloadOverallTimer?.cancel();
+    _fileDownloadOverallTimer = null;
   }
 
   /// Erase a specific file by index (1-based). Note: This changes indices of remaining files.

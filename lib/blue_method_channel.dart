@@ -629,7 +629,7 @@ class MethodChannelBlue extends BluePlatform {
           return;
         }
         final device = getDevice(id);
-        device.fileData.update(chunk);
+        device.appendFileChunk(chunk, isComplete: isComplete);
 
         Logger.logInsoleRx(id, device.side.name, chunk, source: 'file_chunk', maxBytes: 48);
 
