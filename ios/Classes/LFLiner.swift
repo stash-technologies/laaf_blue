@@ -31,6 +31,9 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
     var modeChar: CBCharacteristic!
     var commandChar: CBCharacteristic!
     var dataChar: CBCharacteristic!
+    /// True after a get-file (0x21) write until another command is sent.
+    /// File body often arrives as raw 0xD5/0xE0 packets without a 0x21 prefix.
+    var receivingFile = false
     
     func toHashmap() -> [String: Any]{
         return ["id" : id, "name": name]
@@ -189,6 +192,16 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
             if data.count == 0 { return }
             
             let commandId = data[0]
+
+            if receivingFile {
+                emitFileChunkIfNeeded(peripheralId: peripheral.identifier.uuidString, data: data, commandId: commandId)
+                if commandId == 0x20 || commandId == 0x22 || commandId == 0x29 ||
+                    ((commandId == 0x01 || commandId == 0x02) && data.count <= 3) {
+                    // Still handle short command ACKs below.
+                } else {
+                    return
+                }
+            }
             
             switch commandId {
             case 0x20: // Response to "get number of files" command
@@ -205,13 +218,7 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
                 
             case 0x21: // Response to "get file" command - file data chunk
                 if data.count > 1 {
-                    let fileData = data.subdata(in: 1..<data.count)
-                    flutterMessage("Received file data chunk (\(fileData.count) bytes)", peripheral.identifier.uuidString)
-                    BluePlugin.fChannel.invokeMethod("fileDataChunk", arguments: [
-                        "id": peripheral.identifier.uuidString,
-                        "chunk": fileData,
-                        "isComplete": false // You may need to determine this based on your protocol
-                    ])
+                    emitFileChunk(peripheralId: peripheral.identifier.uuidString, chunk: data.subdata(in: 1..<data.count))
                 }
                 
             case 0x10: // Response to "get summary file" command
@@ -256,6 +263,28 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
                 }
             }
         }
+    }
+
+    private func emitFileChunkIfNeeded(peripheralId: String, data: Data, commandId: UInt8) {
+        if commandId == 0x21 {
+            if data.count > 1 {
+                emitFileChunk(peripheralId: peripheralId, chunk: data.subdata(in: 1..<data.count))
+            }
+            return
+        }
+        if commandId == 0x20 && data.count <= 4 { return }
+        if (commandId == 0x22 || commandId == 0x29) && data.count <= 4 { return }
+        if (commandId == 0x01 || commandId == 0x02) && data.count <= 3 { return }
+        emitFileChunk(peripheralId: peripheralId, chunk: data)
+    }
+
+    private func emitFileChunk(peripheralId: String, chunk: Data) {
+        flutterMessage("Received file data chunk (\(chunk.count) bytes)", peripheralId)
+        BluePlugin.fChannel.invokeMethod("fileDataChunk", arguments: [
+            "id": peripheralId,
+            "chunk": chunk,
+            "isComplete": false
+        ])
     }
     
     public func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {

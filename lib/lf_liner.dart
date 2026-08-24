@@ -286,6 +286,9 @@ class LFLiner {
     try {
       List<Map<String, dynamic>> parsedPackets = [];
       int offset = 0;
+      if (fileData.length >= 9 && fileData[0] == 0x10) {
+        offset = 9;
+      }
 
       Logger.log('LF_LINER DEBUG', 'File data length: ${fileData.length}');
       Logger.log('LF_LINER DEBUG', 'First 20 bytes: ${fileData.take(20).toList()}');
@@ -351,31 +354,32 @@ class LFLiner {
     }
   }
 
-  /// Parses raw step data packet from file (24 bytes, same format as live streaming)
+  /// Parses raw step data packet from onboard files (24 bytes).
+  /// File fields are big-endian; live BLE packets use a separate little-endian parser.
   Map<String, dynamic> parseRawStepDataPacket(Uint8List packet) {
     try {
       if (packet.length != 24 || packet[0] != 0xD5) {
         throw ArgumentError('Invalid step data packet');
       }
 
-      // Parse using little-endian format
-      final data = ByteData.sublistView(packet);
+      final bytes = Uint8List.fromList(packet);
+      final data = ByteData.view(bytes.buffer);
 
       return {
         'packetType': 'stepData',
-        'packetId': packet[0],
-        'timestamp': data.getUint32(1, Endian.little), // milliseconds from start
-        'heelStrikeAngle': data.getInt16(5, Endian.little) / 100.0, // degrees
-        'pronationAngle': data.getInt16(7, Endian.little) / 100.0, // degrees
-        'cadence': packet[9], // steps/min
-        'speed': data.getUint16(10, Endian.little) / 1000.0, // m/s
-        'strideTime': data.getUint16(12, Endian.little), // ms/step
-        'strideLength': packet[14] / 100.0, // m/step
-        'contactTime': data.getUint16(15, Endian.little), // ms
-        'swingTime': data.getUint16(17, Endian.little), // ms
-        'stepClearance': packet[19], // mm
-        'totalSteps': data.getUint16(20, Endian.little), // steps
-        'totalDistance': data.getUint16(22, Endian.little), // m
+        'packetId': bytes[0],
+        'timestamp': data.getUint32(1, Endian.big),
+        'heelStrikeAngle': data.getInt16(5, Endian.big) / 100.0,
+        'pronationAngle': data.getInt16(7, Endian.big) / 100.0,
+        'cadence': bytes[9],
+        'speed': data.getUint16(10, Endian.big) / 1000.0,
+        'strideTime': data.getUint16(12, Endian.big),
+        'strideLength': bytes[14] / 10.0,
+        'contactTime': data.getUint16(15, Endian.big),
+        'swingTime': data.getUint16(17, Endian.big),
+        'stepClearance': bytes[19],
+        'totalSteps': data.getUint16(20, Endian.big),
+        'totalDistance': data.getUint16(22, Endian.big),
       };
     } catch (e) {
       message.update('Parse step data packet error: $e');
@@ -577,7 +581,7 @@ class LFLiner {
   /// Completes after [idleComplete] with no new chunks, or [overallTimeout].
   Future<Uint8List?> downloadFile(
     int fileIndex, {
-    Duration idleComplete = const Duration(milliseconds: 1200),
+    Duration idleComplete = const Duration(seconds: 3),
     Duration overallTimeout = const Duration(minutes: 5),
   }) async {
     try {
@@ -604,7 +608,7 @@ class LFLiner {
   }
 
   void _prepareFileAssembly({
-    Duration idleComplete = const Duration(milliseconds: 1200),
+    Duration idleComplete = const Duration(seconds: 3),
     Duration overallTimeout = const Duration(minutes: 5),
   }) {
     _cancelFileDownloadTimers();
@@ -627,6 +631,10 @@ class LFLiner {
   void appendFileChunk(Uint8List chunk, {bool isComplete = false}) {
     if (_isNoiseFileHeader(chunk)) {
       Logger.log('LF_LINER', 'Skipping 9-byte 0x10 file header chunk');
+      _fileDownloadIdleTimer?.cancel();
+      _fileDownloadIdleTimer = Timer(_fileDownloadIdle, () {
+        _finishFileAssembly(success: _fileDownloadBuffer.length > 0);
+      });
       return;
     }
     if (chunk.isEmpty) {
@@ -653,6 +661,7 @@ class LFLiner {
     final bytes = success && _fileDownloadBuffer.length > 0
         ? Uint8List.fromList(_fileDownloadBuffer.takeBytes())
         : Uint8List(0);
+    Logger.log('LF_LINER', 'File assembly finished for $id: ${bytes.length} bytes success=$success');
     if (bytes.isNotEmpty) {
       fileData.update(bytes);
     }

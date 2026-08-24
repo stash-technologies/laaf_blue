@@ -298,8 +298,7 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
     
     //TODO => this should take the result...
     public func writeCommand(liner: LFLiner, command: Data) {
-        //let liner = connectedDevices.first(where: {$0.id == device.identifier.uuidString})!
-        
+        liner.receivingFile = !command.isEmpty && command[0] == 0x21
         liner.peripheral!.writeValue(command, for: liner.commandChar, type: .withResponse);
     }
     

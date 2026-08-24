@@ -27,6 +27,7 @@ class LFLinerDevice(
     private val handler = Handler(Looper.getMainLooper())
     private var connectionResult: MethodChannel.Result? = null
     private var commandResult: MethodChannel.Result? = null
+    private var receivingFile = false
     
     private var connectionProgress = ConnectionProgress()
 
@@ -213,6 +214,7 @@ class LFLinerDevice(
     fun sendCommand(command: ByteArray, result: MethodChannel.Result) {
         commandCharacteristic?.let { characteristic ->
             commandResult = result
+            receivingFile = command.isNotEmpty() && command[0] == 0x21.toByte()
             characteristic.value = command
             val success = bluetoothGatt?.writeCharacteristic(characteristic) ?: false
             if (!success) {
@@ -292,6 +294,17 @@ class LFLinerDevice(
         val commandId = data[0].toUByte().toInt()
         val dataHex = data.joinToString("") { "%02x".format(it) }
         flutterMessage("Data characteristic received: [$dataHex] (command: 0x${"%02x".format(commandId)})")
+
+        if (receivingFile) {
+            emitFileChunkIfNeeded(data, commandId)
+            val isShortControlAck =
+                (commandId == 0x20 && data.size <= 4) ||
+                ((commandId == 0x22 || commandId == 0x29) && data.size <= 4) ||
+                ((commandId == 0x01 || commandId == 0x02) && data.size <= 3)
+            if (!isShortControlAck) {
+                return
+            }
+        }
         
         when (commandId) {
             0x20 -> { // Response to "get number of files" command
@@ -376,6 +389,28 @@ class LFLinerDevice(
                 flutterMessage("Unknown command response: 0x${"%02x".format(commandId)}")
             }
         }
+    }
+
+    private fun emitFileChunkIfNeeded(data: ByteArray, commandId: Int) {
+        if (commandId == 0x21) {
+            if (data.size > 1) {
+                emitFileChunk(data.sliceArray(1 until data.size))
+            }
+            return
+        }
+        if (commandId == 0x20 && data.size <= 4) return
+        if ((commandId == 0x22 || commandId == 0x29) && data.size <= 4) return
+        if ((commandId == 0x01 || commandId == 0x02) && data.size <= 3) return
+        emitFileChunk(data)
+    }
+
+    private fun emitFileChunk(chunk: ByteArray) {
+        flutterMessage("Received file data chunk (${chunk.size} bytes)")
+        channel.invokeMethod("fileDataChunk", mapOf(
+            "id" to bluetoothDevice.address,
+            "chunk" to chunk,
+            "isComplete" to false
+        ))
     }
 
     /// Maps raw hardware mode byte to Flutter [DeviceState] enum index (+1 offset, matching iOS).
