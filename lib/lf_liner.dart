@@ -369,8 +369,8 @@ class LFLiner {
     }
   }
 
-  /// Parses raw step data packet from onboard files (24 bytes).
-  /// File fields are big-endian; live BLE packets use a separate little-endian parser.
+  /// Parses raw Step data packet from onboard files (24 bytes).
+  /// Both live BLE and file packets use big-endian format.
   Map<String, dynamic> parseRawStepDataPacket(Uint8List packet) {
     try {
       if (packet.length != 24 || packet[0] != 0xD5) {
@@ -409,21 +409,21 @@ class LFLiner {
         throw ArgumentError('Invalid FSR data packet');
       }
 
-      // Parse using little-endian format
+      // Parse using big-endian format (matches live stream and firmware)
       final data = ByteData.sublistView(packet);
 
       return {
         'packetType': 'fsrData',
         'packetId': packet[0],
-        'timestampSeconds': data.getUint32(1, Endian.little), // Unix timestamp seconds
-        'timestampMilliseconds': data.getUint16(5, Endian.little), // milliseconds
-        'fsr1': data.getUint16(7, Endian.little), // A/D units
-        'fsr2': data.getUint16(9, Endian.little), // A/D units
-        'fsr3': data.getUint16(11, Endian.little), // A/D units
-        'fsr4': data.getUint16(13, Endian.little), // A/D units
-        'fsr5': data.getUint16(15, Endian.little), // A/D units
-        'fsr6': data.getUint16(17, Endian.little), // A/D units
-        'fsr7': data.getUint16(19, Endian.little), // A/D units
+        'timestampSeconds': data.getUint32(1, Endian.big), // Unix timestamp seconds
+        'timestampMilliseconds': data.getUint16(5, Endian.big), // milliseconds
+        'fsr1': data.getUint16(7, Endian.big), // A/D units
+        'fsr2': data.getUint16(9, Endian.big), // A/D units
+        'fsr3': data.getUint16(11, Endian.big), // A/D units
+        'fsr4': data.getUint16(13, Endian.big), // A/D units
+        'fsr5': data.getUint16(15, Endian.big), // A/D units
+        'fsr6': data.getUint16(17, Endian.big), // A/D units
+        'fsr7': data.getUint16(19, Endian.big), // A/D units
       };
     } catch (e) {
       message.update('Parse FSR data packet error: $e');
@@ -438,7 +438,7 @@ class LFLiner {
         throw ArgumentError('Invalid IMU data packet');
       }
 
-      // Parse using little-endian format
+      // Parse using big-endian format (matches firmware MSB-first)
       final data = ByteData.sublistView(packet);
 
       // Scale factor: 16,384 AD/g @ 2g
@@ -447,14 +447,14 @@ class LFLiner {
       return {
         'packetType': 'imuData',
         'packetId': packet[0],
-        'timestampSeconds': data.getUint32(1, Endian.little), // Unix timestamp seconds
-        'timestampMilliseconds': data.getUint16(5, Endian.little), // milliseconds
-        'accX': data.getInt16(7, Endian.little) / scaleFactor, // g units
-        'accY': data.getInt16(9, Endian.little) / scaleFactor, // g units
-        'accZ': data.getInt16(11, Endian.little) / scaleFactor, // g units
-        'gyroX': data.getInt16(13, Endian.little) / scaleFactor, // deg/s (using same scale per docs)
-        'gyroY': data.getInt16(15, Endian.little) / scaleFactor, // deg/s
-        'gyroZ': data.getInt16(17, Endian.little) / scaleFactor, // deg/s
+        'timestampSeconds': data.getUint32(1, Endian.big), // Unix timestamp seconds
+        'timestampMilliseconds': data.getUint16(5, Endian.big), // milliseconds
+        'accX': data.getInt16(7, Endian.big) / scaleFactor, // g units
+        'accY': data.getInt16(9, Endian.big) / scaleFactor, // g units
+        'accZ': data.getInt16(11, Endian.big) / scaleFactor, // g units
+        'gyroX': data.getInt16(13, Endian.big) / scaleFactor, // deg/s (using same scale per docs)
+        'gyroY': data.getInt16(15, Endian.big) / scaleFactor, // deg/s
+        'gyroZ': data.getInt16(17, Endian.big) / scaleFactor, // deg/s
       };
     } catch (e) {
       message.update('Parse IMU data packet error: $e');

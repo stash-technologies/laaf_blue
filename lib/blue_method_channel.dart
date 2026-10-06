@@ -203,13 +203,13 @@ class MethodChannelBlue extends BluePlatform {
       // Convert DateTime to Unix timestamp (seconds since epoch)
       final unixTimestamp = timestamp.millisecondsSinceEpoch ~/ 1000;
 
-      // Create set time command with Unix timestamp (4 bytes, little-endian)
+      // Create set time command with Unix timestamp (4 bytes, big-endian)
       final command = Uint8List(5);
       command[0] = 0x10; // Set time command ID
-      command[1] = (unixTimestamp & 0xFF);
-      command[2] = ((unixTimestamp >> 8) & 0xFF);
-      command[3] = ((unixTimestamp >> 16) & 0xFF);
-      command[4] = ((unixTimestamp >> 24) & 0xFF);
+      command[1] = ((unixTimestamp >> 24) & 0xFF);
+      command[2] = ((unixTimestamp >> 16) & 0xFF);
+      command[3] = ((unixTimestamp >> 8) & 0xFF);
+      command[4] = (unixTimestamp & 0xFF);
 
       return await sendCommand(deviceId, command);
     } catch (e) {

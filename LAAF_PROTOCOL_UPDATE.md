@@ -183,7 +183,7 @@ device.fileCount.observeChanges(3, (count) async {
 - **Step Data** (0xD5): 24 bytes with relative timestamps
 - **Raw IMU** (0xD0): 19 bytes with Unix timestamps  
 - **Raw FSR** (0xE0): 21 bytes with Unix timestamps
-- All stored data uses **Little-Endian** format
+- All stored data uses **Big-Endian** format (MSB first)
 
 ## 🧪 Example Usage
 

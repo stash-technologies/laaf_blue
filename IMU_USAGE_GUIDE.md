@@ -18,7 +18,7 @@ Used during real-time streaming with `startStream()`
 
 - **Packet ID**: `0xD0` (208 in decimal)
 - **Packet Size**: 33 bytes
-- **Byte Format**: Little-Endian
+- **Byte Format**: Big-Endian (MSB first)
 - **Scaling**: 16,384 AD/g @ 2g range
 - **Update Rate**: ~20ms
 
@@ -46,7 +46,7 @@ Used for offline data logging retrieved via `getFile()`
 
 - **Packet ID**: `0xD0` (208 in decimal)
 - **Packet Size**: 19 bytes (IMU data only, no FSR)
-- **Byte Format**: Little-Endian
+- **Byte Format**: Big-Endian (MSB first)
 - **Scaling**: 16,384 AD/g @ 2g range
 
 | Bytes | Data Type | Description |

@@ -4,7 +4,7 @@ import 'dart:typed_data';
 /// Supports two formats:
 /// - File format: 19 bytes (IMU only)
 /// - Live streaming format: 33 bytes (IMU + FSR data)
-/// All data is Little-Endian.
+/// All data is Big-Endian (MSB first).
 class IMUPacket {
   IMUPacket(this.rawPacket)
       : timestamp = _getTimestamp(rawPacket.sublist(1, 7)),
@@ -51,11 +51,11 @@ class IMUPacket {
   static num _getTimestamp(Uint8List timestampBytes) {
     final data = ByteData.sublistView(timestampBytes);
 
-    // Bytes 0-3: Unix timestamp in seconds (little-endian)
-    int seconds = data.getUint32(0, Endian.little);
+    // Bytes 0-3: Unix timestamp in seconds (big-endian)
+    int seconds = data.getUint32(0, Endian.big);
 
-    // Bytes 4-5: milliseconds (little-endian)
-    int milliseconds = data.getUint16(4, Endian.little);
+    // Bytes 4-5: milliseconds (big-endian)
+    int milliseconds = data.getUint16(4, Endian.big);
 
     // Return timestamp with millisecond precision
     return num.parse((seconds + (milliseconds / 1000.0)).toStringAsFixed(3));
@@ -65,7 +65,7 @@ class IMUPacket {
   /// Raw units: 16,384 AD/g @ 2g scale
   static num _convertRawToG(Uint8List rawBytes) {
     final data = ByteData.sublistView(rawBytes);
-    int rawValue = data.getInt16(0, Endian.little);
+    int rawValue = data.getInt16(0, Endian.big);
 
     // Convert to g: raw / 16384
     return num.parse((rawValue / 16384.0).toStringAsFixed(6));
@@ -76,7 +76,7 @@ class IMUPacket {
   /// Note: Typically gyroscope uses different scaling, but following the docs
   static num _convertRawToDegPerSec(Uint8List rawBytes) {
     final data = ByteData.sublistView(rawBytes);
-    int rawValue = data.getInt16(0, Endian.little);
+    int rawValue = data.getInt16(0, Endian.big);
 
     // Convert using the same scale as accelerometer per documentation
     return num.parse((rawValue / 16384.0).toStringAsFixed(6));
@@ -89,7 +89,7 @@ class IMUPacket {
     final data = ByteData.sublistView(fsrBytes);
 
     for (int i = 0; i < 14; i += 2) {
-      fsrs.add(data.getInt16(i, Endian.little));
+      fsrs.add(data.getInt16(i, Endian.big));
     }
 
     return fsrs;
@@ -109,12 +109,12 @@ class IMUPacket {
   static IMUPacket test() {
     return IMUPacket(Uint8List.fromList([
       0xD0, // Packet ID
-      0x00, 0x00, 0x00, 0x65, // Timestamp seconds (example)
-      0xE8, 0x03, // Timestamp milliseconds (1000ms)
-      0x00, 0x40, // AccX (16384 = 1g)
+      0x00, 0x00, 0x00, 0x65, // Timestamp seconds (example: 101s)
+      0x03, 0xE8, // Timestamp milliseconds (1000ms)
+      0x40, 0x00, // AccX (16384 = 1g)
       0x00, 0x00, // AccY (0g)
       0x00, 0x00, // AccZ (0g)
-      0x00, 0x10, // GyroX (4096)
+      0x10, 0x00, // GyroX (4096)
       0x00, 0x00, // GyroY (0)
       0x00, 0x00, // GyroZ (0)
     ]));

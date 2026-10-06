@@ -36,10 +36,10 @@ void main() {
         final packetBytes = List<int>.filled(24, 0);
         packetBytes[0] = 0xD5; // packet type
         
-        // Set distance at bytes 22-23 (little-endian)
+        // Set distance at bytes 22-23 (big-endian: MSB first)
         final distance = expectedDistances[i];
-        packetBytes[22] = distance & 0xFF;
-        packetBytes[23] = (distance >> 8) & 0xFF;
+        packetBytes[22] = (distance >> 8) & 0xFF;
+        packetBytes[23] = distance & 0xFF;
         
         final packet = StepDataPacket(Uint8List.fromList(packetBytes));
         print('Step $i: Expected=$distance, Actual=${packet.totalDistanceTraveled}');
@@ -48,16 +48,15 @@ void main() {
       }
     });
 
-    test('Test the problematic values from user data', () {
-      // Test the pattern: 512, 1024, 1280, 1536, 2048
-      // These should actually be: 2, 4, 5, 6, 8
-      
+    test('Verify Big-Endian byte order for distance values', () {
+      // In Big-Endian, MSB is at byte 22 and LSB is at byte 23.
+      // E.g., 2 meters is [0x00, 0x02], 4 meters is [0x00, 0x04].
       final testCases = [
-        {'bytes': [0x02, 0x00], 'expected': 2, 'wrong_value': 512},
-        {'bytes': [0x04, 0x00], 'expected': 4, 'wrong_value': 1024},
-        {'bytes': [0x05, 0x00], 'expected': 5, 'wrong_value': 1280},
-        {'bytes': [0x06, 0x00], 'expected': 6, 'wrong_value': 1536},
-        {'bytes': [0x08, 0x00], 'expected': 8, 'wrong_value': 2048},
+        {'bytes': [0x00, 0x02], 'expected': 2},
+        {'bytes': [0x00, 0x04], 'expected': 4},
+        {'bytes': [0x00, 0x05], 'expected': 5},
+        {'bytes': [0x00, 0x06], 'expected': 6},
+        {'bytes': [0x00, 0x08], 'expected': 8},
       ];
       
       for (var testCase in testCases) {
@@ -68,10 +67,10 @@ void main() {
         packetBytes[23] = bytes[1];
         
         final packet = StepDataPacket(Uint8List.fromList(packetBytes));
-        print('Bytes [${bytes[0]}, ${bytes[1]}]: Expected=${testCase['expected']}, Actual=${packet.totalDistanceTraveled}, Wrong=${testCase['wrong_value']}');
+        print('Bytes [${bytes[0]}, ${bytes[1]}]: Expected=${testCase['expected']}, Actual=${packet.totalDistanceTraveled}');
         
         expect(packet.totalDistanceTraveled, equals(testCase['expected']), 
-               reason: 'Should parse ${bytes} as ${testCase['expected']}, not ${testCase['wrong_value']}');
+               reason: 'Should parse $bytes as ${testCase['expected']}');
       }
     });
   });
