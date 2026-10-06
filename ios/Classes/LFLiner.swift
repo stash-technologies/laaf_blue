@@ -195,23 +195,24 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
 
             if receivingFile {
                 emitFileChunkIfNeeded(peripheralId: peripheral.identifier.uuidString, data: data, commandId: commandId)
-                if commandId == 0x20 || commandId == 0x22 || commandId == 0x29 ||
-                    ((commandId == 0x01 || commandId == 0x02) && data.count <= 3) {
-                    // Still handle short command ACKs below.
-                } else {
+                if !isShortControlAck(commandId: commandId, length: data.count) {
                     return
                 }
             }
             
             switch commandId {
             case 0x20: // Response to "get number of files" command
-                if data.count >= 2 {
+                // Real ACKs are 2–4 bytes. Longer 0x20 payloads are file/sensor
+                // chunks whose second byte is not a file count (e.g. 0xD0 = 208).
+                if data.count >= 2 && data.count <= 4 {
                     let fileCount = Int(data[1])
                     flutterMessage("Device has \(fileCount) files", peripheral.identifier.uuidString)
                     BluePlugin.fChannel.invokeMethod("fileCountResponse", arguments: [
                         "id": peripheral.identifier.uuidString,
                         "count": fileCount
                     ])
+                } else if data.count >= 2 {
+                    flutterMessage("Ignoring long file-count lookalike (\(data.count) bytes)", peripheral.identifier.uuidString)
                 } else {
                     flutterMessage("Invalid file count response format", peripheral.identifier.uuidString)
                 }
@@ -232,6 +233,7 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
                 }
                 
             case 0x22, 0x29: // Response to erase file commands
+                guard data.count <= 4 else { break }
                 let success = data.count > 1 ? data[1] == 0x01 : true
                 let operation = commandId == 0x22 ? "eraseFile" : "eraseAllFiles"
                 flutterMessage("File operation \(operation): \(success ? "success" : "failed")", peripheral.identifier.uuidString)
@@ -254,6 +256,9 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
                         "dataTypes": dataTypes
                     ])
                 }
+
+            case 0xD0, 0xD5, 0xE0:
+                break
                 
             default:
                 // Only log if it's a short packet that might be a command response
@@ -263,6 +268,13 @@ public class LFLiner: NSObject, CBPeripheralDelegate  {
                 }
             }
         }
+    }
+
+    private func isShortControlAck(commandId: UInt8, length: Int) -> Bool {
+        if commandId == 0x20 && length <= 4 { return true }
+        if (commandId == 0x22 || commandId == 0x29) && length <= 4 { return true }
+        if (commandId == 0x01 || commandId == 0x02) && length <= 3 { return true }
+        return false
     }
 
     private func emitFileChunkIfNeeded(peripheralId: String, data: Data, commandId: UInt8) {

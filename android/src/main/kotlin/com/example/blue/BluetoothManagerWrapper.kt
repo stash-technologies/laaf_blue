@@ -143,9 +143,11 @@ class BluetoothManagerWrapper(
             return
         }
 
-        if (connectedDevices.containsKey(deviceId)) {
-            result.error("ALREADY_CONNECTED", "Device already connected: $deviceId", null)
-            return
+        val existingKey = connectedDevices.keys.firstOrNull { it.equals(deviceId, ignoreCase = true) }
+        if (existingKey != null) {
+            Log.d(TAG, "Replacing existing connection for $deviceId")
+            connectedDevices[existingKey]?.disconnect()
+            connectedDevices.remove(existingKey)
         }
 
         val lfLinerDevice = LFLinerDevice(
@@ -163,19 +165,19 @@ class BluetoothManagerWrapper(
     }
 
     fun disconnect(deviceId: String, result: MethodChannel.Result) {
-        val device = connectedDevices[deviceId]
+        val device = connectedDevice(deviceId)
         if (device == null) {
             result.error("DEVICE_NOT_CONNECTED", "Device not connected: $deviceId", null)
             return
         }
 
         device.disconnect()
-        connectedDevices.remove(deviceId)
+        removeConnected(deviceId)
         result.success(true)
     }
 
     fun checkMode(deviceId: String, result: MethodChannel.Result) {
-        val device = connectedDevices[deviceId]
+        val device = connectedDevice(deviceId)
         if (device == null) {
             result.error("DEVICE_NOT_CONNECTED", "Device not connected: $deviceId", null)
             return
@@ -185,7 +187,7 @@ class BluetoothManagerWrapper(
     }
 
     fun sendCommand(deviceId: String, command: ByteArray, result: MethodChannel.Result) {
-        val device = connectedDevices[deviceId]
+        val device = connectedDevice(deviceId)
         if (device == null) {
             result.error("DEVICE_NOT_CONNECTED", "Device not connected: $deviceId", null)
             return
@@ -195,13 +197,23 @@ class BluetoothManagerWrapper(
     }
 
     fun readBatteryLevel(deviceId: String, result: MethodChannel.Result) {
-        val device = connectedDevices[deviceId]
+        val device = connectedDevice(deviceId)
         if (device == null) {
             result.success(null)
             return
         }
 
         device.readBatteryLevel(result)
+    }
+
+    private fun connectedDevice(deviceId: String): LFLinerDevice? {
+        val key = connectedDevices.keys.firstOrNull { it.equals(deviceId, ignoreCase = true) } ?: return null
+        return connectedDevices[key]
+    }
+
+    private fun removeConnected(deviceId: String) {
+        val key = connectedDevices.keys.firstOrNull { it.equals(deviceId, ignoreCase = true) } ?: return
+        connectedDevices.remove(key)
     }
 
     private fun updateScannedDevices() {

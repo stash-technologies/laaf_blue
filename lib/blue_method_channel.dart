@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:blue/step_data_packet.dart';
 import 'package:flutter/services.dart';
@@ -399,6 +400,35 @@ class MethodChannelBlue extends BluePlatform {
     }
   }
 
+  @override
+  Future<bool?> renameDevice(String deviceId, String name) async {
+    try {
+      Logger.log("b", "renaming device $deviceId to $name");
+      if (name.length > 20) {
+        Logger.log("b error", "Rename error: name length (${name.length}) exceeds 20 characters");
+        return false;
+      }
+      if (!name.startsWith('LAAF-L') && !name.startsWith('LAAF-R')) {
+        Logger.log("b error", "Rename error: name must start with 'LAAF-L' or 'LAAF-R'");
+        return false;
+      }
+      final asciiBytes = ascii.encode(name);
+      if (asciiBytes.isEmpty || asciiBytes[0] != 0x4C) {
+        Logger.log("b error", "Rename error: first character must be 'L' (0x4C)");
+        return false;
+      }
+      final command = Uint8List(asciiBytes.length + 2);
+      command[0] = 0xBA;
+      command[1] = asciiBytes.length;
+      command.setRange(2, command.length, asciiBytes);
+
+      return await sendCommand(deviceId, command);
+    } catch (e) {
+      Logger.log("b error", "Rename device error for device $deviceId: $e");
+      return false;
+    }
+  }
+
   LFLiner getDevice(String id) {
     final device = findDevice(id);
     if (device != null) {
@@ -613,6 +643,10 @@ class MethodChannelBlue extends BluePlatform {
         final count = args["count"] as int;
 
         if (blueState.activeDevices.value().isEmpty) {
+          return;
+        }
+        if (count < 0 || count > 64) {
+          Logger.log("b", "Ignoring implausible file count $count from $id");
           return;
         }
         final device = getDevice(id);

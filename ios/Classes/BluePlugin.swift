@@ -116,8 +116,11 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
             let data = Data(rawFlutterData.data)
             
             let deviceId = args["device"] as! String
-            //let device = discoveredDevices.first(where: {$0.identifier.uuidString == deviceId})!
-            let device = connectedDevices.first(where: {$0.id == deviceId})!
+            guard let device = liner(for: deviceId) else {
+                flutterMessage("couldn't find connected device with id: \(deviceId)")
+                result(false)
+                break
+            }
             
             flutterMessage("writing command: ...\(device.id.suffix(4)) => \(data.map { String(format: "[%02x]", $0)}.joined())", device.id)
             
@@ -171,9 +174,19 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
         return nil
     }
 
+    /// Newest liner for [deviceId]. A second `didConnect` used to append another
+    /// liner and leave the stale one first in the list. Commands then hit the
+    /// stale object while notifications (live FSR) hit the new delegate, so
+    /// file download/logging for that foot silently did nothing until the
+    /// process was killed.
+    func liner(for deviceId: String) -> LFLiner? {
+        let normalized = deviceId.lowercased()
+        return connectedDevices.last(where: { $0.id.lowercased() == normalized })
+    }
+
     func getMacAddress(deviceId: String) -> String? {
         // Find the connected device
-        let device = connectedDevices.first(where: {$0.id == deviceId})
+        let device = liner(for: deviceId)
         
         if let peripheral = device?.peripheral {
             // On iOS, return the UUID identifier (MAC address not accessible due to privacy)
@@ -185,7 +198,7 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
     
     func getFirmwareVersion(deviceId: String) -> String? {
         // Find the connected device
-        let device = connectedDevices.first(where: {$0.id == deviceId})
+        let device = liner(for: deviceId)
         
         if let peripheral = device?.peripheral {
             // Look for Device Information Service (0x180A)
@@ -213,7 +226,7 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
     
     func readBatteryLevel(deviceId: String) -> Int? {
         // Find the connected device
-        let device = connectedDevices.first(where: {$0.id == deviceId})
+        let device = liner(for: deviceId)
         
         if let peripheral = device?.peripheral {
             // Look for Battery Service (0x180F)
@@ -270,7 +283,9 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
     
     public func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         flutterMessage("device connection initiated...")
-        let liner = LFLiner(id: peripheral.identifier.uuidString, name: peripheral.name!)
+        let peripheralId = peripheral.identifier.uuidString
+        connectedDevices.removeAll { $0.id.lowercased() == peripheralId.lowercased() }
+        let liner = LFLiner(id: peripheralId, name: peripheral.name ?? "Unknown")
         liner.peripheral = peripheral 
         liner.uuids = uuids
         connectedDevices.append(liner)
@@ -288,7 +303,8 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
         flutterMessage("\(peripheral.name!) succesfully disconnected.")
         BluePlugin.fChannel.invokeMethod("deviceDisconnected", arguments: peripheral.identifier.uuidString)
         
-        connectedDevices.removeAll(where: {$0.id == peripheral.identifier.uuidString})
+        let peripheralId = peripheral.identifier.uuidString
+        connectedDevices.removeAll { $0.id.lowercased() == peripheralId.lowercased() }
         flutterMessage("remaining devices : \(connectedDevices)")
     }
     
@@ -298,14 +314,20 @@ public class BluePlugin: NSObject, CBCentralManagerDelegate, CBPeripheralDelegat
     
     //TODO => this should take the result...
     public func writeCommand(liner: LFLiner, command: Data) {
+        guard let peripheral = liner.peripheral, let commandChar = liner.commandChar else {
+            flutterMessage("command characteristic not ready", liner.id)
+            liner.writeResult?(false)
+            liner.writeResult = nil
+            return
+        }
         liner.receivingFile = !command.isEmpty && command[0] == 0x21
-        liner.peripheral!.writeValue(command, for: liner.commandChar, type: .withResponse);
+        peripheral.writeValue(command, for: commandChar, type: .withResponse)
     }
     
     public func checkDeviceState(_ id: String) {
         flutterMessage("checking device state...", id)
 
-        guard let liner = connectedDevices.first(where: { $0.id.lowercased() == id.lowercased() }),
+        guard let liner = liner(for: id),
               let peripheral = liner.peripheral,
               let modeChar = liner.modeChar else {
             flutterMessage("could not check device state - device not connected or mode char unavailable", id)

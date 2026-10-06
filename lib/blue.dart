@@ -293,6 +293,29 @@ class Blue {
     }
   }
 
+  /// Renames an insole device. Sends command 0xBA with the new name.
+  /// The new name must start with 'LAAF-L' or 'LAAF-R' and have a maximum of 20 characters.
+  Future<bool> renameDevice(LFLiner device, String newName) async {
+    if (blueState.bluetoothStatus.value() == BluetoothStatus.available) {
+      if (newName.length > 20) {
+        Logger.log("blue.renameDevice", "Name exceeds maximum length of 20 characters");
+        return false;
+      }
+      if (!newName.startsWith('LAAF-L') && !newName.startsWith('LAAF-R')) {
+        Logger.log("blue.renameDevice", "Name must start with 'LAAF-L' or 'LAAF-R'");
+        return false;
+      }
+      final result = await BluePlatform.instance
+          .renameDevice(device.id, newName)
+          .timeout(const Duration(seconds: timeUntilTimeout),
+              onTimeout: timeoutFunction("blue.renameDevice", device.id.substring(device.id.length - 5)));
+
+      return nonNullResult(result);
+    } else {
+      return false;
+    }
+  }
+
   /// Removes the 'device' from 'blueState.activeDevices' Observable.
   bool remove(LFLiner device) {
     Logger.log("b", "removing device $device.id");

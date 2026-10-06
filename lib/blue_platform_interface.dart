@@ -112,6 +112,10 @@ abstract class BluePlatform extends PlatformInterface {
     throw UnimplementedError('getBatteryLevel() has not been implemented');
   }
 
+  Future<bool?> renameDevice(String deviceId, String name) {
+    throw UnimplementedError('renameDevice() has not been implemented');
+  }
+
   BlueState getBlueState() {
     return _instance.getBlueState();
   }

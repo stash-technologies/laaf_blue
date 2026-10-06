@@ -308,13 +308,16 @@ class LFLinerDevice(
         
         when (commandId) {
             0x20 -> { // Response to "get number of files" command
-                if (data.size >= 2) {
+                // Real ACKs are 2–4 bytes. Longer 0x20 payloads are file/sensor chunks.
+                if (data.size in 2..4) {
                     val fileCount = data[1].toUByte().toInt()
                     flutterMessage("Device has $fileCount files")
                     channel.invokeMethod("fileCountResponse", mapOf(
                         "id" to bluetoothDevice.address,
                         "count" to fileCount
                     ))
+                } else if (data.size >= 2) {
+                    flutterMessage("Ignoring long file-count lookalike (${data.size} bytes)")
                 } else {
                     flutterMessage("Invalid file count response format")
                 }
@@ -343,6 +346,7 @@ class LFLinerDevice(
             }
             
             0x22, 0x29 -> { // Response to erase file commands
+                if (data.size > 4) return
                 val success = if (data.size > 1) data[1].toInt() == 0x01 else true
                 val operation = if (commandId == 0x22) "eraseFile" else "eraseAllFiles"
                 flutterMessage("File operation $operation: ${if (success) "success" else "failed"}")

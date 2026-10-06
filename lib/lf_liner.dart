@@ -18,7 +18,7 @@ import 'observable.dart';
 class LFLiner {
   // This is the 'mac' on android, and generated 'cbuuid' on ios
   final String id;
-  final String name;
+  String name;
   Foot side = Foot.left;
   String firmwareVersion = "";
 
@@ -93,10 +93,18 @@ class LFLiner {
     imuPacket.name = "imu_packet ($id)";
     batteryLevel.name = "battery ($id)";
 
-    bool isRight = name.contains('R');
-    if (isRight) {
+    if (_nameIsRightFoot(name)) {
       side = Foot.right;
     }
+  }
+
+  /// `LAAF-R` / `LAAF-R07` / `RIGHT`. Not a bare `contains('R')`, which tags
+  /// any name that happens to include that letter and misses a lowercase `r`.
+  static bool _nameIsRightFoot(String name) {
+    final upper = name.toUpperCase();
+    if (upper.contains('LEFT') || upper.startsWith('LAAF-L')) return false;
+    if (upper.contains('RIGHT') || upper.startsWith('LAAF-R')) return true;
+    return RegExp(r'(?:^|[-_\s])R.*$').hasMatch(upper);
   }
 
   /// Values used to determine whether or not the device is still streaming
@@ -194,10 +202,10 @@ class LFLiner {
   /// Packets appear in [liveStreamPacket] and the parsed [fsrPacket],
   /// [stepPacket], and [imuPacket] observables.
   ///
-  /// When [loggingFlags] is set (e.g. [DataTypeFlags.stepAndFSR]), the device
-  /// clock is synced and onboard file logging starts with those types.
-  /// Omit [loggingFlags] for UI-only streaming (calibration, sensor tests)
-  /// so no files are written to insole memory.
+  /// When [loggingFlags] is set (e.g. [DataTypeFlags.stepAndFSR]), any open
+  /// onboard log is closed, the device clock is synced, and a new file starts
+  /// with those types. Omit [loggingFlags] for UI-only streaming so no new
+  /// file is opened.
   Future<bool> startLiveStream({int? loggingFlags}) async {
     try {
       final result = await blue.startStream(this);
@@ -206,6 +214,13 @@ class LFLiner {
       }
       if (loggingFlags == null) {
         return true;
+      }
+      // Firmware ignores a new startLogging (and keeps the old data types /
+      // open file) when a log is already running. Close it first so step+FSR
+      // actually starts a new file. Live FSR can keep updating either way.
+      final stopped = await stopLogging();
+      if (!stopped) {
+        message.update('Stop logging before new session returned false');
       }
       final timeSet = await setTime();
       if (!timeSet) {
@@ -515,6 +530,27 @@ class LFLiner {
     } catch (e) {
       message.update('Get battery level error: $e');
       return null;
+    }
+  }
+
+  /// Rename this device using command 0xBA.
+  /// [newName] must start with 'LAAF-L' or 'LAAF-R' and have a maximum of 20 characters.
+  /// On success, updates this instance's [name] and [side].
+  Future<bool> rename(String newName) async {
+    try {
+      final success = await blue.renameDevice(this, newName);
+      if (success) {
+        name = newName;
+        if (_nameIsRightFoot(name)) {
+          side = Foot.right;
+        } else {
+          side = Foot.left;
+        }
+      }
+      return success;
+    } catch (e) {
+      message.update('Rename error: $e');
+      return false;
     }
   }
 
