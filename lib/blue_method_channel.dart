@@ -73,7 +73,7 @@ class MethodChannelBlue extends BluePlatform {
         blueState.scanning.update(true);
       } else {
         Logger.log("b", "you are already scanning...");
-        return Future<bool?>(() => false);
+        return await Future<bool?>(() => false);
       }
 
       await Future.delayed(Duration(milliseconds: duration));
@@ -95,7 +95,7 @@ class MethodChannelBlue extends BluePlatform {
     try {
       if (!blueState.scanning.value()) {
         Logger.log("b warning", "a 'stopScan' was attempted when no scan was in progress");
-        return Future<bool?>(() => false);
+        return await Future<bool?>(() => false);
       }
 
       final result = await methodChannel.invokeMethod<bool?>('stopScan');

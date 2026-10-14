@@ -623,7 +623,7 @@ class LFLiner {
     try {
       final device = activeEntry ?? this;
       if (!identical(device, this)) {
-        return device.downloadFile(
+        return await device.downloadFile(
           fileIndex,
           idleComplete: idleComplete,
           overallTimeout: overallTimeout,
@@ -635,7 +635,7 @@ class LFLiner {
         _finishFileAssembly(success: false);
         return null;
       }
-      return _fileDownloadCompleter?.future;
+      return await _fileDownloadCompleter?.future;
     } catch (e) {
       message.update('Download file error: $e');
       _finishFileAssembly(success: false);
