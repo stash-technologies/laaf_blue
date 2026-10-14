@@ -419,7 +419,7 @@ class MethodChannelBlue extends BluePlatform {
       }
       final command = Uint8List(asciiBytes.length + 2);
       command[0] = 0xBA;
-      command[1] = asciiBytes.length;
+      command[1] = asciiBytes.length + 1;
       command.setRange(2, command.length, asciiBytes);
 
       return await sendCommand(deviceId, command);

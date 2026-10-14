@@ -417,13 +417,13 @@ class LFLiner {
         'packetId': packet[0],
         'timestampSeconds': data.getUint32(1, Endian.big), // Unix timestamp seconds
         'timestampMilliseconds': data.getUint16(5, Endian.big), // milliseconds
-        'fsr1': data.getUint16(7, Endian.big), // A/D units
-        'fsr2': data.getUint16(9, Endian.big), // A/D units
-        'fsr3': data.getUint16(11, Endian.big), // A/D units
-        'fsr4': data.getUint16(13, Endian.big), // A/D units
-        'fsr5': data.getUint16(15, Endian.big), // A/D units
-        'fsr6': data.getUint16(17, Endian.big), // A/D units
-        'fsr7': data.getUint16(19, Endian.big), // A/D units
+        'fsr1': data.getInt16(7, Endian.big), // A/D units (16-bit signed)
+        'fsr2': data.getInt16(9, Endian.big), // A/D units (16-bit signed)
+        'fsr3': data.getInt16(11, Endian.big), // A/D units (16-bit signed)
+        'fsr4': data.getInt16(13, Endian.big), // A/D units (16-bit signed)
+        'fsr5': data.getInt16(15, Endian.big), // A/D units (16-bit signed)
+        'fsr6': data.getInt16(17, Endian.big), // A/D units (16-bit signed)
+        'fsr7': data.getInt16(19, Endian.big), // A/D units (16-bit signed)
       };
     } catch (e) {
       message.update('Parse FSR data packet error: $e');

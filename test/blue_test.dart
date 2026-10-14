@@ -30,3 +30,5 @@ void main() {
     expect(await bluePlugin.getPlatformVersion(), '42');
   });
 } */
+
+void main() {}

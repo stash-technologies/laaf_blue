@@ -63,14 +63,18 @@ void main() {
       // Timestamp ms: 500 = 0x01F4
       bytes[5] = 0x01;
       bytes[6] = 0xF4;
-      // FSR1: 1000 = 0x03E8
+      // FSR1: 1000 = 0x03E8 (positive pressure)
       bytes[7] = 0x03;
       bytes[8] = 0xE8;
+      // FSR2: -2 = 0xFFFE (baseline noise around 0, previously mistakenly 65534)
+      bytes[9] = 0xFF;
+      bytes[10] = 0xFE;
 
       final result = liner.parseRawFSRDataPacket(bytes);
       expect(result['timestampSeconds'], equals(100));
       expect(result['timestampMilliseconds'], equals(500));
       expect(result['fsr1'], equals(1000));
+      expect(result['fsr2'], equals(-2));
     });
 
     test('LFLiner parseRawIMUDataPacket parses Big-Endian file data', () {
