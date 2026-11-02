@@ -11,6 +11,7 @@ import 'package:blue/step_data_packet.dart';
 import 'blue.dart';
 import 'device_id.dart';
 import 'device_state.dart';
+import 'file_download_assembler.dart';
 import 'foot.dart';
 import 'observable.dart';
 
@@ -92,6 +93,14 @@ class LFLiner {
     loggingDataTypes.name = "logging_types ($id)";
     imuPacket.name = "imu_packet ($id)";
     batteryLevel.name = "battery ($id)";
+    _fileDownload = FileDownloadAssembler(
+      onFinished: (bytes, {required bool success}) {
+        Logger.log('LF_LINER', 'File assembly finished for $id: ${bytes.length} bytes success=$success');
+        if (bytes.isNotEmpty) {
+          fileData.update(bytes);
+        }
+      },
+    );
 
     if (_nameIsRightFoot(name)) {
       side = Foot.right;
@@ -112,11 +121,7 @@ class LFLiner {
   int lastPacketTime = 0;
 
   /// Assembled onboard-file bytes (BLE delivers the file in GATT chunks).
-  final BytesBuilder _fileDownloadBuffer = BytesBuilder(copy: false);
-  Completer<Uint8List?>? _fileDownloadCompleter;
-  Timer? _fileDownloadIdleTimer;
-  Timer? _fileDownloadOverallTimer;
-  Duration _fileDownloadIdle = const Duration(milliseconds: 1200);
+  late final FileDownloadAssembler _fileDownload;
 
   static LFLiner deviceFromMap(Map map) {
     return LFLiner(map["id"], map["name"]);
@@ -441,20 +446,17 @@ class LFLiner {
       // Parse using big-endian format (matches firmware MSB-first)
       final data = ByteData.sublistView(packet);
 
-      // Scale factor: 16,384 AD/g @ 2g
-      const double scaleFactor = 16384.0;
-
       return {
         'packetType': 'imuData',
         'packetId': packet[0],
         'timestampSeconds': data.getUint32(1, Endian.big), // Unix timestamp seconds
         'timestampMilliseconds': data.getUint16(5, Endian.big), // milliseconds
-        'accX': data.getInt16(7, Endian.big) / scaleFactor, // g units
-        'accY': data.getInt16(9, Endian.big) / scaleFactor, // g units
-        'accZ': data.getInt16(11, Endian.big) / scaleFactor, // g units
-        'gyroX': data.getInt16(13, Endian.big) / scaleFactor, // deg/s (using same scale per docs)
-        'gyroY': data.getInt16(15, Endian.big) / scaleFactor, // deg/s
-        'gyroZ': data.getInt16(17, Endian.big) / scaleFactor, // deg/s
+        'accX': data.getInt16(7, Endian.big) / IMUPacket.accelCountsPerG,
+        'accY': data.getInt16(9, Endian.big) / IMUPacket.accelCountsPerG,
+        'accZ': data.getInt16(11, Endian.big) / IMUPacket.accelCountsPerG,
+        'gyroX': data.getInt16(13, Endian.big) * IMUPacket.gyroFullScaleDegreesPerSecond / 32768,
+        'gyroY': data.getInt16(15, Endian.big) * IMUPacket.gyroFullScaleDegreesPerSecond / 32768,
+        'gyroZ': data.getInt16(17, Endian.big) * IMUPacket.gyroFullScaleDegreesPerSecond / 32768,
       };
     } catch (e) {
       message.update('Parse IMU data packet error: $e');
@@ -605,20 +607,33 @@ class LFLiner {
   /// Retrieve a specific file by index (1-based). File data streams through fileData observable.
   Future<bool> getFile(int fileIndex) async {
     try {
-      _prepareFileAssembly();
-      return await blue.getFile(this, fileIndex);
+      if (_fileDownload.isArmed) {
+        message.update('Get file ignored; download already in progress');
+        return false;
+      }
+      _armFileDownload();
+      final sent = await blue.getFile(this, fileIndex);
+      if (!sent) {
+        _fileDownload.abort();
+      }
+      return sent;
     } catch (e) {
       message.update('Get file error: $e');
+      _fileDownload.abort();
       return false;
     }
   }
 
   /// Download a full onboard file by concatenating GATT chunks.
-  /// Completes after [idleComplete] with no new chunks, or [overallTimeout].
+  ///
+  /// Completes after [idleComplete] of silence, or [overallTimeout]. Native
+  /// transfers never set a completion flag, so a short gap is not end of file.
+  /// A second call while one download is armed returns null and leaves the
+  /// first download running.
   Future<Uint8List?> downloadFile(
     int fileIndex, {
-    Duration idleComplete = const Duration(seconds: 3),
-    Duration overallTimeout = const Duration(minutes: 5),
+    Duration idleComplete = const Duration(seconds: 15),
+    Duration overallTimeout = const Duration(minutes: 8),
   }) async {
     try {
       final device = activeEntry ?? this;
@@ -629,89 +644,40 @@ class LFLiner {
           overallTimeout: overallTimeout,
         );
       }
-      _prepareFileAssembly(idleComplete: idleComplete, overallTimeout: overallTimeout);
-      final sent = await blue.getFile(this, fileIndex);
-      if (!sent) {
-        _finishFileAssembly(success: false);
+      final pending = _armFileDownload(idleComplete: idleComplete, overallTimeout: overallTimeout);
+      if (pending == null) {
+        Logger.log('LF_LINER', 'Download already in progress for $id');
         return null;
       }
-      return await _fileDownloadCompleter?.future;
+      final sent = await blue.getFile(this, fileIndex);
+      if (!sent) {
+        _fileDownload.abort();
+        return null;
+      }
+      return await pending;
     } catch (e) {
       message.update('Download file error: $e');
-      _finishFileAssembly(success: false);
+      _fileDownload.abort();
       return null;
     }
   }
 
-  void _prepareFileAssembly({
-    Duration idleComplete = const Duration(seconds: 3),
-    Duration overallTimeout = const Duration(minutes: 5),
+  /// Arms assembly when idle. Returns null when a download is already armed.
+  Future<Uint8List?>? _armFileDownload({
+    Duration idleComplete = const Duration(seconds: 15),
+    Duration overallTimeout = const Duration(minutes: 8),
   }) {
-    _cancelFileDownloadTimers();
-    if (_fileDownloadCompleter != null && !_fileDownloadCompleter!.isCompleted) {
-      _fileDownloadCompleter!.complete(null);
-    }
-    if (_fileDownloadBuffer.length > 0) {
-      _fileDownloadBuffer.takeBytes();
-    }
-    _fileDownloadIdle = idleComplete;
+    if (_fileDownload.isArmed) return null;
     fileData.update(Uint8List(0));
-    _fileDownloadCompleter = Completer<Uint8List?>();
-    _fileDownloadOverallTimer = Timer(overallTimeout, () {
-      Logger.log('LF_LINER', 'File download overall timeout for $id');
-      _finishFileAssembly(success: _fileDownloadBuffer.length > 0);
-    });
+    return _fileDownload.arm(idleComplete: idleComplete, overallTimeout: overallTimeout);
   }
 
   /// Called from the method channel for each GATT file chunk.
   void appendFileChunk(Uint8List chunk, {bool isComplete = false}) {
-    if (_isNoiseFileHeader(chunk)) {
+    if (_fileDownload.isArmed && chunk.length == 9 && chunk[0] == 0x10) {
       Logger.log('LF_LINER', 'Skipping 9-byte 0x10 file header chunk');
-      _fileDownloadIdleTimer?.cancel();
-      _fileDownloadIdleTimer = Timer(_fileDownloadIdle, () {
-        _finishFileAssembly(success: _fileDownloadBuffer.length > 0);
-      });
-      return;
     }
-    if (chunk.isEmpty) {
-      return;
-    }
-    _fileDownloadBuffer.add(chunk);
-    _fileDownloadIdleTimer?.cancel();
-    if (isComplete) {
-      _finishFileAssembly(success: true);
-      return;
-    }
-    _fileDownloadIdleTimer = Timer(_fileDownloadIdle, () {
-      _finishFileAssembly(success: true);
-    });
-  }
-
-  static bool _isNoiseFileHeader(Uint8List chunk) {
-    return chunk.length == 9 && chunk[0] == 0x10;
-  }
-
-  void _finishFileAssembly({required bool success}) {
-    _cancelFileDownloadTimers();
-    final completer = _fileDownloadCompleter;
-    final bytes = success && _fileDownloadBuffer.length > 0
-        ? Uint8List.fromList(_fileDownloadBuffer.takeBytes())
-        : Uint8List(0);
-    Logger.log('LF_LINER', 'File assembly finished for $id: ${bytes.length} bytes success=$success');
-    if (bytes.isNotEmpty) {
-      fileData.update(bytes);
-    }
-    if (completer != null && !completer.isCompleted) {
-      completer.complete(bytes.isEmpty ? null : bytes);
-    }
-    _fileDownloadCompleter = null;
-  }
-
-  void _cancelFileDownloadTimers() {
-    _fileDownloadIdleTimer?.cancel();
-    _fileDownloadIdleTimer = null;
-    _fileDownloadOverallTimer?.cancel();
-    _fileDownloadOverallTimer = null;
+    _fileDownload.addChunk(chunk, isComplete: isComplete);
   }
 
   /// Erase a specific file by index (1-based). Note: This changes indices of remaining files.

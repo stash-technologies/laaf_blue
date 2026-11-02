@@ -14,13 +14,13 @@ void main() {
       // Timestamp: 0x00000065 = 101s, 0x03E8 = 1000ms -> 102.0s
       expect(packet.timestamp, equals(102.0));
 
-      // AccX: 0x4000 = 16384 -> 16384 / 16384.0 = 1.0g
+      // AccX: 0x1000 = 4096 counts = 1.0 g at ±8 g
       expect(packet.accX, equals(1.0));
       expect(packet.accY, equals(0.0));
       expect(packet.accZ, equals(0.0));
 
-      // GyroX: 0x1000 = 4096 -> 4096 / 16384.0 = 0.25 deg/s
-      expect(packet.gyroX, equals(0.25));
+      // GyroX: 0x1000 = 4096 counts = 250 °/s at ±2000 °/s
+      expect(packet.gyroX, equals(250.0));
       expect(packet.gyroY, equals(0.0));
       expect(packet.gyroZ, equals(0.0));
     });
@@ -86,14 +86,18 @@ void main() {
       // Timestamp ms: 500 = 0x01F4
       bytes[5] = 0x01;
       bytes[6] = 0xF4;
-      // AccX: 16384 = 0x4000 -> 1.0g
-      bytes[7] = 0x40;
+      // AccX: 4096 = 0x1000 -> 1.0 g at ±8 g
+      bytes[7] = 0x10;
       bytes[8] = 0x00;
+      // GyroX: 4096 = 0x1000 -> 250 °/s at ±2000 °/s
+      bytes[13] = 0x10;
+      bytes[14] = 0x00;
 
       final result = liner.parseRawIMUDataPacket(bytes);
       expect(result['timestampSeconds'], equals(100));
       expect(result['timestampMilliseconds'], equals(500));
       expect(result['accX'], equals(1.0));
+      expect(result['gyroX'], equals(250.0));
     });
   });
 }

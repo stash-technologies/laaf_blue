@@ -61,25 +61,25 @@ class IMUPacket {
     return num.parse((seconds + (milliseconds / 1000.0)).toStringAsFixed(3));
   }
 
-  /// Converts raw accelerometer data to g (gravity units)
-  /// Raw units: 16,384 AD/g @ 2g scale
+  /// ±8 g full scale. 4096 counts is 1 g.
+  /// Resting gravity in recorded walks sits near 4096 counts, not 16384.
+  static const double accelCountsPerG = 4096.0;
+
+  /// ±2000 °/s full scale. 32768 counts is 2000 °/s.
+  static const double gyroFullScaleDegreesPerSecond = 2000.0;
+
+  /// Converts raw accelerometer data to g (gravity units).
   static num _convertRawToG(Uint8List rawBytes) {
     final data = ByteData.sublistView(rawBytes);
     int rawValue = data.getInt16(0, Endian.big);
-
-    // Convert to g: raw / 16384
-    return num.parse((rawValue / 16384.0).toStringAsFixed(6));
+    return num.parse((rawValue / accelCountsPerG).toStringAsFixed(6));
   }
 
-  /// Converts raw gyroscope data to degrees/second
-  /// Raw units: 16,384 AD/g @ 2g scale (per documentation)
-  /// Note: Typically gyroscope uses different scaling, but following the docs
+  /// Converts raw gyroscope data to degrees/second.
   static num _convertRawToDegPerSec(Uint8List rawBytes) {
     final data = ByteData.sublistView(rawBytes);
     int rawValue = data.getInt16(0, Endian.big);
-
-    // Convert using the same scale as accelerometer per documentation
-    return num.parse((rawValue / 16384.0).toStringAsFixed(6));
+    return num.parse((rawValue * gyroFullScaleDegreesPerSecond / 32768).toStringAsFixed(6));
   }
 
   /// Parses FSR data from live streaming packet (bytes 19-32)
@@ -111,7 +111,7 @@ class IMUPacket {
       0xD0, // Packet ID
       0x00, 0x00, 0x00, 0x65, // Timestamp seconds (example: 101s)
       0x03, 0xE8, // Timestamp milliseconds (1000ms)
-      0x40, 0x00, // AccX (16384 = 1g)
+      0x10, 0x00, // AccX (4096 = 1g at ±8g)
       0x00, 0x00, // AccY (0g)
       0x00, 0x00, // AccZ (0g)
       0x10, 0x00, // GyroX (4096)
